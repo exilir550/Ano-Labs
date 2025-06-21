@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Swap ETH ↔ $ANO | Ano Labs</title>
+  <link href="./src/output.css" rel="stylesheet" />
+  <style> body { padding-top: 4rem; } </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+  <nav class="fixed top-0 left-0 right-0 w-full z-50 bg-gray-800 shadow-md">
+    <div class="max-w-7xl mx-auto flex items-center justify-between px-6 py-4">
+      <a href="index.html" class="text-3xl font-extrabold text-amber-400 tracking-wide">ANOLABS</a>
+      <div class="space-x-6 flex items-center">
+        <a href="index.html" class="text-sm font-medium text-white hover:text-amber-400 transition">Home</a>
+        <a href="swap.html" class="text-sm font-medium text-white hover:text-amber-400 transition">Swap</a>
+        <a href="create-collection.html" class="text-sm font-medium text-white hover:text-amber-400 transition">Create</a>
+        <a href="dashboard.html" class="text-sm font-medium text-white hover:text-amber-400 transition">Dashboard</a>
+        <a href="gated-access.html" class="text-sm font-medium text-white hover:text-amber-400 transition">Gated Access</a>
+        <button id="connectWalletBtn" class="ml-4 px-4 py-2 bg-amber-400 text-black text-sm font-bold rounded-full hover:bg-amber-300 transition">Connect Wallet</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="flex flex-col items-center justify-center px-4 py-12">
+    <h1 class="text-3xl sm:text-4xl font-bold text-amber-400 mb-6 text-center">Swap ETH ↔ $ANO</h1>
+    <p id="walletAddress" class="mb-4 text-sm text-gray-300 text-center break-words max-w-xs">Wallet: --</p>
+
+    <div class="w-full max-w-md bg-gray-800 p-6 sm:p-8 rounded-xl shadow-xl">
+      <div id="balances" class="mb-4 text-sm text-gray-300 space-y-1">
+        <p id="ethBalance">ETH Balance: --</p>
+        <p id="anoBalance">ANO Balance: --</p>
+      </div>
+
+      <label class="block mb-2 text-lg font-medium">Swap Direction:</label>
+      <select id="swapDirection" class="w-full px-4 py-2 mb-4 rounded bg-gray-700 text-white border border-gray-600">
+        <option value="ethToAno">ETH → ANO</option>
+        <option value="anoToEth">ANO → ETH</option>
+      </select>
+
+      <label class="block mb-2 text-lg font-medium">Amount:</label>
+      <input type="number" id="ethAmount" placeholder="e.g. 0.01" class="w-full px-4 py-2 rounded bg-gray-700 text-white border border-gray-600 mb-4" />
+
+      <button id="swapBtn" class="w-full bg-amber-400 text-black font-semibold py-2 px-4 rounded hover:bg-amber-300 transition">Swap</button>
+      <p id="status" class="mt-4 text-sm text-green-400 text-center"></p>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <script>
+    const connectBtn = document.getElementById("connectWalletBtn");
+    const walletDisplay = document.getElementById("walletAddress");
+    const ethBalanceDisplay = document.getElementById("ethBalance");
+    const anoBalanceDisplay = document.getElementById("anoBalance");
+    const swapBtn = document.getElementById("swapBtn");
+    const status = document.getElementById("status");
+
+    const swapContractAddress = "0xe3f539606f39D1B57a610EF6466dEC5E62890D81";
+    const anoTokenAddress = "0x1D6AfCff12be74b402692430d9be949943A875b0";
+
+    const swapABI = [
+      { inputs: [], name: "swap", outputs: [], stateMutability: "payable", type: "function" },
+      { inputs: [{ name: "anoAmount", type: "uint256" }], name: "reverseSwap", outputs: [], stateMutability: "nonpayable", type: "function" }
+    ];
+
+    const tokenABI = [
+      { inputs: [{ name: "_owner", type: "address" }], name: "balanceOf", outputs: [{ name: "balance", type: "uint256" }], stateMutability: "view", type: "function" },
+      { inputs: [{ name: "_spender", type: "address" }, { name: "_value", type: "uint256" }], name: "approve", outputs: [{ name: "", type: "bool" }], stateMutability: "nonpayable", type: "function" }
+    ];
+
+    let signer, provider, contract;
+
+   function updateUI(address) {
+  connectBtn.innerHTML = `👤`;
+  connectBtn.onclick = () => window.location.href = "profile.html";
+  if (walletDisplay) walletDisplay.innerText = `Wallet: ${address}`;
+}
+
+
+    async function refreshBalances(address) {
+      const ethBalance = await provider.getBalance(address);
+      ethBalanceDisplay.innerText = "ETH Balance: " + ethers.utils.formatEther(ethBalance) + " ETH";
+
+      const token = new ethers.Contract(anoTokenAddress, tokenABI, provider);
+      const anoBalance = await token.balanceOf(address);
+      anoBalanceDisplay.innerText = "ANO Balance: " + ethers.utils.formatEther(anoBalance) + " ANO";
+    }
+
+   connectBtn.addEventListener("click", async () => {
+  if (typeof window.ethereum === "undefined") return alert("Install MetaMask");
+
+  provider = new ethers.providers.Web3Provider(window.ethereum);
+  const accounts = await provider.listAccounts(); // ✅ This never triggers popup
+
+  if (accounts.length > 0) {
+    // Already connected
+    signer = provider.getSigner();
+    const address = await signer.getAddress();
+    contract = new ethers.Contract(swapContractAddress, swapABI, signer);
+    updateUI(address);
+    await refreshBalances(address);
+  } else {
+    // Show popup only if user not connected
+    try {
+      await provider.send("eth_requestAccounts", []);
+      signer = provider.getSigner();
+      const address = await signer.getAddress();
+      localStorage.setItem("ano_wallet", address);
+      contract = new ethers.Contract(swapContractAddress, swapABI, signer);
+      updateUI(address);
+      await refreshBalances(address);
+    } catch (err) {
+      console.warn("User denied wallet connection");
+    }
+  }
+});
+
+
+
+    window.addEventListener("DOMContentLoaded", async () => {
+  const saved = localStorage.getItem("ano_wallet");
+  if (saved && typeof window.ethereum !== "undefined") {
+    provider = new ethers.providers.Web3Provider(window.ethereum);
+    const accounts = await provider.listAccounts(); // ✅ Safe method — no popup
+    if (accounts.length > 0) {
+      signer = provider.getSigner();
+      contract = new ethers.Contract(swapContractAddress, swapABI, signer);
+      updateUI(accounts[0]);
+      await refreshBalances(accounts[0]);
+    }
+  }
+});
+
+
+    swapBtn.addEventListener("click", async () => {
+      if (!signer || !contract) return alert("Please connect your wallet first.");
+      const amount = document.getElementById("ethAmount").value;
+      const direction = document.getElementById("swapDirection").value;
+      if (!amount || isNaN(amount) || amount <= 0) return alert("Enter valid amount.");
+
+      try {
+        status.innerText = "Swapping...";
+        if (direction === "ethToAno") {
+          const tx = await contract.swap({ value: ethers.utils.parseEther(amount) });
+          await tx.wait();
+          status.innerText = "✅ ETH → ANO swap successful!";
+        } else {
+          const token = new ethers.Contract(anoTokenAddress, tokenABI, signer);
+          const amountInTokens = ethers.utils.parseEther(amount);
+          const approvalTx = await token.approve(swapContractAddress, amountInTokens);
+          await approvalTx.wait();
+          const reverseTx = await contract.reverseSwap(amountInTokens);
+          await reverseTx.wait();
+          status.innerText = "✅ ANO → ETH swap successful!";
+        }
+        const address = await signer.getAddress();
+        await refreshBalances(address);
+      } catch (error) {
+        console.error("Swap error:", error);
+        status.innerText = "❌ Swap failed. See console.";
+      }
+    });
+
+    // Highlight active nav link
+    document.querySelectorAll("nav a[href]").forEach(link => {
+      if (window.location.href.includes(link.getAttribute("href"))) {
+        link.classList.add("text-amber-400");
+        link.classList.remove("text-white");
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gated Access | Ano Labs</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
+</head>
+<body class="bg-gray-900 text-white min-h-screen py-10 px-6 relative">
+
+  <!-- ✅ Navbar -->
+  <nav class="fixed top-0 left-0 right-0 w-full z-50 bg-gray-800 shadow-md">
+    <div class="max-w-7xl mx-auto flex items-center justify-between px-6 py-4">
+      <a href="index.html" class="text-3xl font-extrabold text-amber-400 tracking-wide">ANOLABS</a>
+      <div class="space-x-6 flex items-center">
+        <a href="index.html" class="text-sm font-medium text-white hover:text-amber-400 transition">Home</a>
+        <a href="swap.html" class="text-sm font-medium text-white hover:text-amber-400 transition">Swap</a>
+        <a href="create-collection.html" class="text-sm font-medium text-white hover:text-amber-400 transition">Create</a>
+        <a href="dashboard.html" class="text-sm font-medium text-white hover:text-amber-400 transition">Dashboard</a>
+        <a href="gated-access.html" class="text-sm font-medium text-white hover:text-amber-400 transition">Gated Access</a>
+        <button id="connectWalletBtn" class="ml-4 px-4 py-2 bg-amber-400 text-black text-sm font-bold rounded-full hover:bg-amber-300 transition">Connect Wallet</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="max-w-4xl mt-24 mx-auto">
+    <h1 class="text-3xl font-bold text-amber-400 text-center mb-4">🔐 NFT Gated Access Integration</h1>
+    <p class="text-center text-gray-300 mb-8">
+      Use this code snippet to restrict any page of your website to holders of your NFT collection.
+    </p>
+
+    <!-- Contract Input -->
+    <div class="bg-gray-800 p-4 rounded-lg shadow mb-6">
+      <label for="contractInput" class="block text-sm mb-1 text-white font-semibold">Paste Your NFT Contract Address:</label>
+      <input id="contractInput" type="text" placeholder="0x..." class="w-full bg-gray-700 border border-gray-600 text-sm rounded px-4 py-2 text-white" />
+    </div>
+
+    <!-- Instructions -->
+    <div class="bg-gray-800 p-6 rounded-lg shadow-xl mb-6">
+      <h2 class="text-xl font-semibold text-green-400 mb-2">📋 How to Use:</h2>
+      <ol class="list-decimal list-inside text-gray-300 space-y-2 text-sm">
+        <li><strong>Click “Copy</strong> to copy the snippet below.</li>
+        <li>Paste it into your HTML <code>&lt;body&gt;</code> area.</li>
+        <li>Update the contract address or use the box above to insert it automatically.</li>
+        <li>Save and upload. Done ✅</li>
+      </ol>
+    </div>
+
+    <!-- Code Block -->
+    <div class="relative bg-black text-green-300 font-mono rounded-lg p-4 overflow-x-auto mb-8">
+      <button id="copyBtn" class="absolute top-2 right-2 bg-gray-700 hover:bg-gray-600 text-white text-xs px-2 py-1 rounded">Copy</button>
+      <pre id="codeBlock" class="whitespace-pre-wrap text-xs">&lt;script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"&gt;&lt;/script&gt;
+&lt;script&gt;
+  async function checkNFTOwnership() {
+    const nftContract = "PASTE_YOUR_CONTRACT_ADDRESS"; // 🔍 Replace with your NFT contract
+    const abi = [{
+      "inputs": [{"internalType":"address","name":"owner","type":"address"}],
+      "name": "balanceOf",
+      "outputs": [{"internalType":"uint256","name":"","type":"uint256"}],
+      "stateMutability": "view",
+      "type": "function"
+    }];
+
+    if (!window.ethereum) return alert("Please install MetaMask.");
+
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    await provider.send("eth_requestAccounts", []);
+    const signer = provider.getSigner();
+    const user = await signer.getAddress();
+
+    const contract = new ethers.Contract(nftContract, abi, provider);
+    const balance = await contract.balanceOf(user);
+
+    if (balance.gt(0)) {
+      document.getElementById("protectedContent").style.display = "block";
+    } else {
+      document.body.innerHTML = "<h1 style='color:red;text-align:center'>❌ Access Denied: NFT required</h1>";
+    }
+  }
+  window.addEventListener("load", checkNFTOwnership);
+&lt;/script&gt;
+
+&lt;div id="protectedContent" style="display:none"&gt;
+  &lt;h2&gt;✅ Welcome, NFT Holder!&lt;/h2&gt;
+  &lt;p&gt;Your exclusive content goes here.&lt;/p&gt;
+&lt;/div&gt;</pre>
+    </div>
+
+    <!-- Support -->
+    <p class="text-center text-sm text-gray-500">
+      Need help? Email us at
+      <a href="mailto:support@anolabs.com" class="text-amber-400 hover:underline">support@anolabs.com</a>
+    </p>
+  </div>
+  
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <script>
+    const contractInput = document.getElementById("contractInput");
+    const codeBlock = document.getElementById("codeBlock");
+    const copyBtn = document.getElementById("copyBtn");
+
+    contractInput.addEventListener("input", () => {
+      const raw = codeBlock.innerText;
+      const replaced = raw.replace(/PASTE_YOUR_CONTRACT_ADDRESS/g, contractInput.value.trim());
+      codeBlock.innerText = replaced;
+    });
+
+    copyBtn.addEventListener("click", () => {
+      navigator.clipboard.writeText(codeBlock.innerText).then(() => {
+        copyBtn.innerText = "Copied ✅";
+        setTimeout(() => (copyBtn.innerText = "Copy"), 2000);
+      });
+    });
+  </script>
+
+  <script src="./wallet-connect.js"></script>
+<script>
+  window.addEventListener("wallet-restored", e => {
+    const { address, signer, provider } = e.detail;
+    
+    // 👇 You can now access signer, provider, address on page
+    console.log("✅ Wallet Restored", address);
+
+    // Optional: set global variables
+    window.signer = signer;
+    window.provider = provider;
+    window.walletAddress = address;
+
+    // Use it to update balances or content
+    // Example: refreshBalances(address)
+  });
+</script>
+
+
+</body>
+</html>

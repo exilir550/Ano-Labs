@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Your Profile | Ano Labs</title>
+  <link href="./src/output.css" rel="stylesheet" />
+  <style>
+    body { padding-top: 4rem; }
+    .nft-card input { width: 65%; }
+    .nft-card button { width: 32%; }
+  </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen px-4 py-10">
+
+  <!-- Navbar -->
+  <nav class="fixed top-0 left-0 right-0 w-full z-50 bg-gray-800 shadow-md">
+    <div class="max-w-7xl mx-auto flex items-center justify-between px-6 py-4">
+      <a href="index.html" class="text-3xl font-extrabold text-amber-400">ANOLABS</a>
+      <div class="flex space-x-6 items-center">
+        <a href="index.html" class="hover:text-amber-400">Home</a>
+        <a href="swap.html" class="hover:text-amber-400">Swap</a>
+        <a href="create-collection.html" class="hover:text-amber-400">Create</a>
+        <a href="dashboard.html" class="hover:text-amber-400">Dashboard</a>
+        <a href="gated-access.html" class="hover:text-amber-400">Gated Access</a>
+        <button id="connectWalletBtn" class="px-4 py-2 bg-amber-400 text-black rounded-full">Connect Wallet</button>
+      </div>
+    </div>
+  </nav>
+
+  <h1 class="mt-20 text-4xl font-bold text-amber-400 text-center">Your Wallet Profile</h1>
+
+  <div class="mt-6 text-center space-y-1">
+    <p id="walletAddress" class="text-sm text-gray-300"></p>
+    <p id="ethBalance">ETH Balance: --</p>
+    <p id="anoBalance">ANO Balance: --</p>
+  </div>
+
+  <section class="mt-10 max-w-6xl mx-auto">
+    <h2 class="text-2xl font-semibold text-amber-300 text-center mb-4">Your NFTs</h2>
+    <div id="nftGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 text-sm text-gray-400"></div>
+  </section>
+
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <script>
+    const connectBtn = document.getElementById('connectWalletBtn');
+    const ethBalanceEl = document.getElementById('ethBalance');
+    const anoBalanceEl = document.getElementById('anoBalance');
+    const walletAddressEl = document.getElementById('walletAddress');
+    const nftGrid = document.getElementById('nftGrid');
+
+    const ALCHEMY_KEY = 'YMUeZDRzmb0riL3Oix_GZxuwvCbeC_L0';
+    const ALCHEMY_BASE = `https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_KEY}`;
+    const ANO_TOKEN_ADDRESS = '0x1D6AfCff12be74b402692430d9be949943A875b0';
+    const ANO_TOKEN_ABI = ['function balanceOf(address owner) view returns (uint256)'];
+
+    let signer, address;
+
+    async function connectWallet() {
+      if (!window.ethereum) return alert('Install MetaMask');
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      await provider.send('eth_requestAccounts', []);
+      signer = provider.getSigner();
+      address = await signer.getAddress();
+      connectBtn.innerText = '👤';
+      connectBtn.onclick = () => {};
+      walletAddressEl.innerText = `Connected: ${address}`;
+      await refreshBalances(provider, address);
+      await loadNFTs(address);
+    }
+
+    async function refreshBalances(provider, owner) {
+      const eth = await provider.getBalance(owner);
+      ethBalanceEl.innerText = `ETH Balance: ${ethers.utils.formatEther(eth).slice(0, 6)} ETH`;
+      const anoContract = new ethers.Contract(ANO_TOKEN_ADDRESS, ANO_TOKEN_ABI, provider);
+      const rawAno = await anoContract.balanceOf(owner);
+      anoBalanceEl.innerText = `ANO Balance: ${ethers.utils.formatEther(rawAno).slice(0, 6)} ANO`;
+    }
+
+    async function loadNFTs(owner) {
+      nftGrid.innerHTML = '<p class="col-span-full text-center text-gray-500">⏳ Loading NFTs...</p>';
+      try {
+        const resp = await fetch(`${ALCHEMY_BASE}/getNFTs?owner=${owner}`);
+        const { ownedNfts } = await resp.json();
+        nftGrid.innerHTML = '';
+
+        if (!ownedNfts.length) {
+          nftGrid.innerHTML = '<p class="col-span-full text-center">No NFTs found in this wallet.</p>';
+          return;
+        }
+
+        
+const nfts = ownedNfts
+  .filter(nft => nft.contract.address && nft.id.tokenId)
+  .sort((a, b) => {
+    const timeA = new Date(a.timeLastUpdated || 0).getTime();
+    const timeB = new Date(b.timeLastUpdated || 0).getTime();
+    return timeB - timeA; // most recently updated/minted first
+  });
+
+
+        for (const nft of nfts) {
+          const tokenAddress = nft.contract.address;
+          const tokenId = ethers.BigNumber.from(nft.id.tokenId).toString();
+          const imgSrc = nft.metadata?.image || nft.tokenUri?.gateway || '';
+          const name = nft.metadata?.name?.split('#')[0] || nft.contractMetadata?.name || 'Collection';
+
+          const card = document.createElement('div');
+          card.className = 'nft-card bg-gray-800 p-4 rounded-xl shadow-lg flex flex-col';
+          card.innerHTML = `
+            <img src="${imgSrc}" alt="${name}" class="rounded mb-2 w-full h-40 object-cover" />
+            <p class="text-white font-bold">#${tokenId}</p>
+            <a href="dashboard.html?address=${tokenAddress}" class="text-amber-400 hover:underline mb-2">${name}</a>
+            <div class="flex space-x-2 mb-2">
+              <input type="text" placeholder="Recipient" class="px-2 py-1 rounded bg-gray-700 flex-1" />
+              <button class="sendBtn px-2 py-1 bg-amber-400 text-black rounded">Send</button>
+            </div>
+            <p class="status text-sm text-gray-400"></p>
+          `;
+          nftGrid.appendChild(card);
+
+          const input = card.querySelector('input');
+          const btn = card.querySelector('.sendBtn');
+          const statusTxt = card.querySelector('.status');
+
+          btn.onclick = async () => {
+            const to = input.value.trim();
+            if (!ethers.utils.isAddress(to)) return statusTxt.innerText = 'Invalid address';
+            statusTxt.innerText = 'Sending…';
+            try {
+              const erc721 = new ethers.Contract(tokenAddress, ['function safeTransferFrom(address,address,uint256)'], signer);
+              const tx = await erc721.safeTransferFrom(owner, to, tokenId);
+              await tx.wait();
+              input.value = '';
+              statusTxt.innerText = '✅ Sent!';
+            } catch (e) {
+              console.error(e);
+              statusTxt.innerText = '❌ Transfer Failed';
+            }
+          };
+        }
+      } catch (e) {
+        console.error("NFT fetch failed:", e);
+        nftGrid.innerHTML = '<p class="col-span-full text-center text-red-400">❌ Failed to load NFTs</p>';
+      }
+    }
+
+    connectBtn.addEventListener('click', connectWallet);
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      if (!window.ethereum) return;
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const accs = await provider.send('eth_accounts', []);
+      if (accs.length) {
+        signer = provider.getSigner();
+        address = accs[0];
+        connectBtn.innerText = '👤';
+        walletAddressEl.innerText = `Connected: ${address}`;
+        await refreshBalances(provider, address);
+        await loadNFTs(address);
+      }
+    });
+
+    document.querySelectorAll('nav a[href]').forEach(link => {
+      if (window.location.href.includes(link.getAttribute('href'))) {
+        link.classList.add('text-amber-400');
+        link.classList.remove('text-white');
+      }
+    });
+  </script>
+</body>
+</html>

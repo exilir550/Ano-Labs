@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ano Labs | Dashboard</title>
+
+  <!-- Tailwind CSS -->
+  <link href="./src/output.css" rel="stylesheet" />
+
+  <!-- Ethers.js -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen px-4 py-10">
+
+  <!-- ✅ Navbar -->
+  <nav class="fixed top-0 left-0 right-0 w-full z-50 bg-gray-800 shadow-md">
+    <div class="max-w-7xl mx-auto flex items-center justify-between px-6 py-4">
+      <a href="index.html" class="text-3xl font-extrabold text-amber-400 tracking-wide">ANOLABS</a>
+      <div class="space-x-6 flex items-center">
+        <a href="index.html" class="text-sm font-medium text-white hover:text-amber-400">Home</a>
+        <a href="swap.html" class="text-sm font-medium text-white hover:text-amber-400">Swap</a>
+        <a href="create-collection.html" class="text-sm font-medium text-white hover:text-amber-400">Create</a>
+        <a href="dashboard.html" class="text-sm font-medium text-white hover:text-amber-400">Dashboard</a>
+        <a href="gated-access.html" class="text-sm font-medium text-white hover:text-amber-400">Gated Access</a>
+        <button id="connectWalletBtn" class="ml-4 px-4 py-2 bg-amber-400 text-black text-sm font-bold rounded-full hover:bg-amber-300">
+          Connect Wallet
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ✅ Page Heading -->
+  <h1 class="text-5xl font-bold text-amber-400 mb-6 mt-16 text-center">Dashboard</h1>
+
+  <div class="text-center mb-10 mt-2">
+    <a href="create-collection.html" class="px-8 py-3 bg-amber-400 text-black font-bold rounded-xl hover:bg-amber-300 transition">
+      ➕ Create New Collection
+    </a>
+  </div>
+
+  <!-- ✅ Active Collections -->
+  <div class="w-full max-w-7xl mx-auto">
+    <h2 class="text-2xl font-bold text-green-400 mb-4">🔥 Active Collections</h2>
+    <div id="activeCollections" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6"></div>
+    <div class="text-center mt-4">
+      <button id="showMoreBtn" class="hidden px-6 py-2 bg-gray-700 text-white rounded hover:bg-gray-600">Show More</button>
+    </div>
+  </div>
+
+  <!-- ✅ Sold Out Collections -->
+  <div class="w-full max-w-7xl mx-auto mt-16">
+    <h2 class="text-2xl font-bold text-amber-300 mb-4">✅ Sold Out Collections</h2>
+    <div id="soldOutCollections" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6"></div>
+  </div>
+
+  <!-- ✅ Firebase (Module-based SDKs) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBh9hBg2AxbVx2SyWKpDGNKNfpCYotoTko",
+      authDomain: "ano-labs.firebaseapp.com",
+      projectId: "ano-labs",
+      storageBucket: "ano-labs.appspot.com",
+      messagingSenderId: "350584010626",
+      appId: "1:350584010626:web:8aeff5059cb9480712c19b",
+      measurementId: "G-Y5KBJC59E3"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const activeSection = document.getElementById("activeCollections");
+    const soldOutSection = document.getElementById("soldOutCollections");
+    const showMoreBtn = document.getElementById("showMoreBtn");
+    let visibleCards = 8;
+
+    function createCard(col) {
+      return `
+        <div class="bg-gray-800 rounded-xl overflow-hidden shadow-lg flex flex-col transition hover:scale-[1.02] duration-200">
+          <div class="relative">
+            <img src="${col.image}" class="h-44 w-full object-cover" />
+          </div>
+          <div class="p-4 space-y-2 flex-1 flex flex-col justify-between">
+            <div>
+              <h3 class="text-lg font-bold text-white truncate">${col.name} <span class="text-amber-400 text-sm">(${col.symbol})</span></h3>
+              <p class="text-xs text-gray-400"><strong>Description:</strong> ${col.description}</p>
+              <p class="text-xs text-gray-500 mt-1">Max/Wallet: ${col.maxPerWallet || "-"}</p>
+            </div>
+            <div class="flex justify-between text-sm text-gray-300 mt-2">
+              <span class="text-green-300 font-semibold">${ethers.utils.formatUnits(col.price, 18)} ANO</span>
+              <span class="text-gray-400">${col.minted}/${col.supply}</span>
+            </div>
+            <a href="mint.html?address=${col.address}" class="mt-4 block text-center py-2 rounded bg-amber-400 text-black font-semibold hover:bg-amber-300">Mint</a>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderCollections(data) {
+      activeSection.innerHTML = "";
+      soldOutSection.innerHTML = "";
+
+      let activeCount = 0;
+      data.forEach((col) => {
+        const isSoldOut = parseInt(col.minted) >= parseInt(col.supply);
+        const cardHTML = createCard(col);
+
+        if (isSoldOut) {
+          soldOutSection.innerHTML += cardHTML;
+        } else {
+          if (activeCount < visibleCards) {
+            activeSection.innerHTML += cardHTML;
+          }
+          activeCount++;
+        }
+      });
+
+      if (activeCount > visibleCards) {
+        showMoreBtn.classList.remove("hidden");
+        showMoreBtn.onclick = () => {
+          visibleCards += 8;
+          renderCollections(data);
+        };
+      } else {
+        showMoreBtn.classList.add("hidden");
+      }
+    }
+
+    async function loadCollectionsFromFirestore() {
+      const snap = await getDocs(collection(db, "collections"));
+      return snap.docs
+  .map(doc => ({ id: doc.id, ...doc.data() }))
+  .sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds);
+
+    }
+
+    async function loadMintedCounts() {
+      const provider = new ethers.providers.JsonRpcProvider("https://sepolia.infura.io/v3/39151562e7df4e91baa0455ff9c62dcf");
+
+      const tokenCounterABI = [
+        {
+          inputs: [],
+          name: "tokenCounter",
+          outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+          stateMutability: "view",
+          type: "function"
+        }
+      ];
+
+      const raw = await loadCollectionsFromFirestore();
+
+      const updated = await Promise.all(
+        raw.map(async (col) => {
+          try {
+            const contract = new ethers.Contract(col.address, tokenCounterABI, provider);
+            const count = await contract.tokenCounter();
+            return { ...col, minted: count.toNumber() };
+          } catch (e) {
+            console.warn("❌ Failed for", col.name, e);
+            return { ...col, minted: 0 };
+          }
+        })
+      );
+
+      renderCollections(updated);
+    }
+
+    loadMintedCounts();
+
+    document.querySelectorAll("nav a[href]").forEach(link => {
+      if (location.href.includes(link.getAttribute("href"))) {
+        link.classList.add("text-amber-400");
+        link.classList.remove("text-white");
+      }
+    });
+  </script>
+
+  <!-- ✅ Wallet logic (already connected logic etc.) -->
+ <script src="./wallet-connect.js"></script>
+<script>
+  window.addEventListener("wallet-restored", e => {
+    const { address, signer, provider } = e.detail;
+    
+    // 👇 You can now access signer, provider, address on page
+    console.log("✅ Wallet Restored", address);
+
+    // Optional: set global variables
+    window.signer = signer;
+    window.provider = provider;
+    window.walletAddress = address;
+
+    // Use it to update balances or content
+    // Example: refreshBalances(address)
+  });
+</script>
+
+
+</body>
+</html>

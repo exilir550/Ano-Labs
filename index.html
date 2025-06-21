@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ano Labs | Home</title>
+  <link href="./src/output.css" rel="stylesheet" />
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBh9hBg2AxbVx2SyWKpDGNKNfpCYotoTko",
+      authDomain: "ano-labs.firebaseapp.com",
+      projectId: "ano-labs",
+      storageBucket: "ano-labs.appspot.com",
+      messagingSenderId: "350584010626",
+      appId: "1:350584010626:web:8aeff5059cb9480712c19b",
+      measurementId: "G-Y5KBJC59E3"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const track = document.querySelector(".marquee-track");
+    const template = document.getElementById("nft-card-template").innerHTML;
+
+    const provider = new ethers.providers.JsonRpcProvider("https://sepolia.infura.io/v3/39151562e7df4e91baa0455ff9c62dcf");
+    const tokenCounterABI = [{
+      inputs: [],
+      name: "tokenCounter",
+      outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+      stateMutability: "view",
+      type: "function"
+    }];
+
+    async function loadCollections() {
+      const snap = await getDocs(collection(db, "collections"));
+      const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+      for (const col of data) {
+        try {
+          const contract = new ethers.Contract(col.address, tokenCounterABI, provider);
+          const minted = await contract.tokenCounter();
+          const html = template.replace("{IMG}", col.image)
+            .replace("{NAME}", col.name)
+            .replace("{SYMBOL}", col.symbol)
+            .replace("{DESC}", col.description)
+            .replace("{PRICE}", ethers.utils.formatUnits(col.price, 18))
+            .replace("{MINTED}", `${minted}/${col.supply}`);
+          track.insertAdjacentHTML("beforeend", html);
+        } catch (err) {
+          console.warn("Error rendering NFT:", err);
+        }
+      }
+      track.innerHTML += track.innerHTML; // duplicate for seamless scroll
+    }
+
+    loadCollections();
+  </script>
+  <style>
+    body {
+      background-color: #1f2937;
+      color: white;
+      overflow-x: hidden;
+    }
+    .marquee-track {
+      display: flex;
+      gap: 1.5rem;
+      animation: marqueeAnim 40s linear infinite;
+      width: max-content;
+    }
+    .marquee-container {
+      overflow: hidden;
+      padding: 2rem 0;
+    }
+    @keyframes marqueeAnim {
+      from { transform: translateX(0); }
+      to { transform: translateX(-50%); }
+    }
+    .glow {
+      text-shadow: 0 0 10px #fbbf24, 0 0 20px #fbbf24;
+    }
+    .hero-bg {
+      background: radial-gradient(circle, rgba(255,200,0,0.1), transparent 70%);
+    }
+  </style>
+</head>
+
+
+<body>
+  <!-- Navbar -->
+  <nav class="bg-gray-800 px-6 py-4 shadow-md sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+      <a href="index.html" class="text-3xl font-extrabold text-amber-400 tracking-wide">ANOLABS</a>
+      <div class="space-x-4 flex gap-2 items-center">
+        <a href="index.html" class="text-sm font-medium text-white hover:text-amber-400 transition">Home</a>
+        <a href="swap.html" class="text-sm font-medium text-white hover:text-amber-400 transition">Swap</a>
+        <a href="create-collection.html" class="text-sm font-medium text-white hover:text-amber-400 transition">Create</a>
+        <a href="dashboard.html" class="text-sm font-medium text-white hover:text-amber-400 transition">Dashboard</a>
+        <a href="gated-access.html" class="text-sm font-medium text-white hover:text-amber-400 transition">Gated Access</a>
+        <button id="connectWalletBtn" class="ml-4 px-4 py-2 bg-amber-400 text-black text-sm font-bold rounded-full hover:bg-amber-300 transition">Connect Wallet</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="text-center px-6 py-20 relative hero-bg">
+    <h2 class="text-5xl font-extrabold text-amber-400 mb-6 ">Welcome to Ano Labs</h2>
+    <p class="text-gray-300 text-lg max-w-2xl mx-auto">Create, mint, and gate NFT collections on Sepolia using $ANO — No-code, fast, and fully on-chain.</p>
+    <div class="mt-10 space-x-4">
+      <a href="create-collection.html" class="animate-bounce px-6 py-3 bg-amber-400 text-black font-bold rounded-xl hover:bg-amber-300">➕ Launch Collection</a>
+      <a href="dashboard.html" class="animate-pulse px-6 py-3 bg-gray-700 text-white font-semibold rounded-xl hover:bg-gray-600">🧾 Explore Dashboard</a>
+    </div>
+  </section>
+
+  <!-- NFT Marquee Section -->
+  <section class="marquee-container bg-gray-900">
+    <div class="marquee-track px-6"></div>
+    <template id="nft-card-template">
+      <a href="dashboard.html" class="bg-gray-800 rounded-xl shadow-lg w-72 flex-shrink-0 overflow-hidden hover:scale-105 transition ">
+        <img src="{IMG}" class="w-full h-40 object-cover" />
+        <div class="p-4">
+          <h3 class="text-white font-bold text-lg">{NAME} </h3>
+          <p class="text-sm text-green-400 mt-2">{PRICE} ANO   • {MINTED}</p>
+        </div>
+      </a>
+    </template>
+  </section>
+
+  <!-- Rest of homepage remains unchanged -->
+  <section class="bg-gray-800 py-20 px-6">
+    <h3 class="text-5xl font-bold text-center text-amber-300 mb-16">Core Features</h3>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 max-w-8xl mx-auto">
+      <div class="bg-gray-700 p-6 rounded-xl shadow-xl">
+        <h4 class="text-xl font-bold text-white mb-2">🔐 Token Gating</h4>
+        <p class="text-gray-300 text-sm">Easily restrict website content to only NFT holders using our simple snippet.</p>
+      </div>
+      <div class="bg-gray-700 p-6 rounded-xl shadow-xl">
+        <h4 class="text-xl font-bold text-white mb-2">⚡ Fast Deploy</h4>
+        <p class="text-gray-300 text-sm">Go from idea to deployed contract with a few clicks. No need for backend or Solidity.</p>
+      </div>
+      <div class="bg-gray-700 p-6 rounded-xl shadow-xl">
+        <h4 class="text-xl font-bold text-white mb-2">💰 Mint with ANO</h4>
+        <p class="text-gray-300 text-sm">Use your $ANO token for mint payments — fully integrated with our custom swap.</p>
+      </div>
+      <div class="bg-gray-700 p-6 rounded-xl shadow-xl">
+        <h4 class="text-xl font-bold text-white mb-2">📦 Fully On-Chain</h4>
+        <p class="text-gray-300 text-sm">Collections are deployed to Sepolia directly — no centralized control, no vendor lock-in.</p>
+      </div>
+    </div>
+  </section>
+  <section class="py-12 px-6 ">  
+    <h3 class="text-5xl font-bold text-center text-amber-300 mb-16">How It Works</h3>
+    <div class="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
+      <div class="bg-gray-800 p-8 rounded-xl shadow-xl">
+        <h4 class="text-xl font-bold text-white mb-2">1. Connect Wallet</h4>
+        <p class="text-gray-300 text-sm">Connect your Sepolia-compatible wallet to get started.</p>
+      </div>
+      <div class="bg-gray-800 p-6 rounded-xl shadow-xl">
+        <h4 class="text-xl font-bold text-white mb-2">2. Create & Deploy</h4>
+        <p class="text-gray-300 text-sm">Fill out your collection details and deploy your NFT contract instantly.</p>
+      </div>
+      <div class="bg-gray-800 p-6 rounded-xl shadow-xl">
+        <h4 class="text-xl font-bold text-white mb-2">3. Share & Earn</h4>
+        <p class="text-gray-300 text-sm">Share your mint link and start earning from every NFT minted using $ANO.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="bg-gray-800 text-center text-sm text-gray-400 py-6">
+    <div class="flex flex-col items-center gap-2">
+      <div class="space-x-4">
+        <span>🐦 Twitter</span>
+        <span>💬 Discord</span>
+        <span>📧 support@anolabs.com</span>
+      </div>
+      <div>© 2025 Ano Labs — All rights reserved</div>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <script src="./wallet-connect.js"></script>
+</body>
+</html>

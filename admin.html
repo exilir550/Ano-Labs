@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard | Ano Labs</title>
+  <link href="./src/output.css" rel="stylesheet" />
+</head>
+<body class="bg-gray-900 text-white min-h-screen px-6 py-10">
+
+  <!-- Navbar -->
+  <nav class="fixed top-0 left-0 right-0 w-full z-50 bg-gray-800 shadow-md">
+    <div class="max-w-7xl mx-auto flex items-center justify-between px-6 py-4">
+      <a href="index.html" class="text-3xl font-extrabold text-amber-400 tracking-wide">ANOLABS</a>
+      <div class="space-x-6 flex items-center">
+        <a href="index.html" class="text-sm font-medium text-white hover:text-amber-400 transition">Home</a>
+        <a href="dashboard.html" class="text-sm font-medium text-white hover:text-amber-400 transition">Dashboard</a>
+        <button id="connectWalletBtn" class="ml-4 px-4 py-2 bg-amber-400 text-black text-sm font-bold rounded-full hover:bg-amber-300 transition">Connect Wallet</button>
+      </div>
+    </div>
+  </nav>
+
+  <h1 class="text-3xl font-bold text-amber-400 mt-20 mb-8 text-center">Admin Collection Manager</h1>
+
+  <div class="max-w-6xl mx-auto">
+    <div class="flex justify-between items-center mb-6">
+      <select id="filterStatus" class="bg-gray-800 border border-gray-600 text-white px-4 py-2 rounded">
+        <option value="all">All Collections</option>
+        <option value="active">Active</option>
+        <option value="sold">Sold Out</option>
+      </select>
+      <button id="exportCSV" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-white font-medium">📤 Export CSV</button>
+    </div>
+
+    <div id="collectionTable" class="space-y-4"></div>
+    <p id="emptyState" class="text-center text-gray-400 text-sm mt-10 hidden">No collections found for selected filter.</p>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, collection, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBh9hBg2AxbVx2SyWKpDGNKNfpCYotoTko",
+      authDomain: "ano-labs.firebaseapp.com",
+      projectId: "ano-labs",
+      storageBucket: "ano-labs.appspot.com",
+      messagingSenderId: "350584010626",
+      appId: "1:350584010626:web:8aeff5059cb9480712c19b",
+      measurementId: "G-Y5KBJC59E3"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const collectionTable = document.getElementById("collectionTable");
+    const filterStatus = document.getElementById("filterStatus");
+    const emptyState = document.getElementById("emptyState");
+    const exportCSV = document.getElementById("exportCSV");
+
+    const adminAddress = "0x5df54016f9096DaF75C4465F1Dd91C7EEA259f2b";
+    let signer, userAddress, fullData = [];
+
+    const tokenCounterABI = [{
+      inputs: [], name: "tokenCounter",
+      outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+      stateMutability: "view", type: "function"
+    }];
+
+
+    function exportToCSV(data) {
+      const headers = ["Name", "Symbol", "Minted", "MaxSupply", "Price", "Status"];
+      const rows = data.map(col => [
+        col.name, col.symbol, col.minted, col.supply,
+        parseFloat(ethers.utils.formatUnits(col.price, 18)),
+        parseInt(col.minted) >= parseInt(col.supply) ? "Sold Out" : "Active"
+      ]);
+
+      const csvContent = [headers, ...rows].map(r => r.join(",")).join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "collections.csv";
+      link.click();
+    }
+
+    exportCSV.onclick = () => exportToCSV(fullData);
+
+    async function fetchCollections() {
+      const snap = await getDocs(collection(db, "collections"));
+      return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    }
+
+    async function fetchMintedCounts(collections) {
+      const provider = new ethers.providers.JsonRpcProvider("https://sepolia.infura.io/v3/39151562e7df4e91baa0455ff9c62dcf");
+      return Promise.all(collections.map(async col => {
+        try {
+          const contract = new ethers.Contract(col.address, tokenCounterABI, provider);
+          const minted = await contract.tokenCounter();
+          return { ...col, minted: minted.toNumber() };
+        } catch {
+          return { ...col, minted: 0 };
+        }
+      }));
+    }
+
+    function renderCollections(data) {
+      collectionTable.innerHTML = "";
+      emptyState.classList.add("hidden");
+
+      const filter = filterStatus.value;
+      let visible = data.filter(col => {
+        if (filter === "active") return parseInt(col.minted) < parseInt(col.supply);
+        if (filter === "sold") return parseInt(col.minted) >= parseInt(col.supply);
+        return true;
+      });
+
+      if (visible.length === 0) {
+        emptyState.classList.remove("hidden");
+      }
+
+      visible.forEach(col => {
+        const isSoldOut = parseInt(col.minted) >= parseInt(col.supply);
+        const status = isSoldOut ? "Sold Out" : "Active";
+
+        const row = document.createElement("div");
+        row.className = "flex items-center justify-between gap-4 p-4 bg-gray-800 rounded-xl hover:bg-gray-700 transition";
+        row.innerHTML = `
+          <div class="flex items-center gap-4">
+            <img src="${col.image}" alt="${col.name}" class="w-16 h-16 object-cover rounded-lg" />
+            <div>
+              <h3 class="font-bold text-white">${col.name}</h3>
+              <p class="text-xs text-gray-400">${col.symbol}</p>
+            </div>
+          </div>
+          <div class="text-sm text-gray-300">${col.minted} Minted</div>
+          <div class="text-sm text-gray-300">Max/Wallet: ${col.maxPerWallet}</div>
+          <div class="text-sm text-green-300 font-semibold">${ethers.utils.formatUnits(col.price, 18)} ANO</div>
+          <div class="text-sm ${isSoldOut ? 'text-red-400' : 'text-green-400'} font-semibold">${status}</div>
+          <button data-id="${col.id}" class="deleteBtn text-sm px-3 py-1 bg-red-500 text-white rounded hover:bg-red-400">🗑 Delete</button>
+        `;
+        collectionTable.appendChild(row);
+      });
+
+      document.querySelectorAll(".deleteBtn").forEach(btn => {
+        btn.onclick = async () => {
+          const id = btn.getAttribute("data-id");
+          if (!confirm("Are you sure to delete this collection?")) return;
+          await deleteDoc(doc(db, "collections", id));
+          await loadAndRender();
+        };
+      });
+    }
+
+    async function loadAndRender() {
+      const raw = await fetchCollections();
+      fullData = await fetchMintedCounts(raw);
+      renderCollections(fullData);
+    }
+
+    filterStatus.onchange = () => renderCollections(fullData);
+
+    async function checkAdmin() {
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      signer = provider.getSigner();
+      userAddress = await signer.getAddress();
+
+      if (userAddress.toLowerCase() !== adminAddress.toLowerCase()) {
+        alert("Access denied: only admin can view this page.");
+        window.location.href = "index.html";
+        return;
+      }
+
+      updateUI(userAddress);
+      localStorage.setItem("ano_wallet", userAddress);
+      await loadAndRender();
+    }
+
+    window.addEventListener("DOMContentLoaded", async () => {
+      if (window.ethereum && localStorage.getItem("ano_wallet")) {
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        const accounts = await provider.send("eth_accounts", []);
+        if (accounts.length > 0) checkAdmin();
+      }
+    });
+
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <script src="./wallet-connect.js"></script>
+<script>
+  window.addEventListener("wallet-restored", e => {
+    const { address, signer, provider } = e.detail;
+    
+    // 👇 You can now access signer, provider, address on page
+    console.log("✅ Wallet Restored", address);
+
+    // Optional: set global variables
+    window.signer = signer;
+    window.provider = provider;
+    window.walletAddress = address;
+
+    // Use it to update balances or content
+    // Example: refreshBalances(address)
+  });
+</script>
+
+</body>
+</html>
