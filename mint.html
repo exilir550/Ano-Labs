@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Mint NFT | Ano Labs</title>
   <link href="./src/output.css" rel="stylesheet" />
+  <script src="https://js.uploadthing.com/legacy/widget.js"></script>
 </head>
 <body class="bg-gray-900 text-white min-h-screen pt-20 m-0">
 
@@ -57,11 +58,11 @@
   <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <script src="wallet-connect.js"></script>
+
   <script type="module">
     import { ethers } from "https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.esm.min.js";
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getFirestore, collection, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-    import { uploadFiles } from "https://js.uploadthing.com/v2";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBh9hBg2AxbVx2SyWKpDGNKNfpCYotoTko",
@@ -77,11 +78,10 @@
 
     window.uploadDataImageToUploadThing = async (dataUrl) => {
       const file = await fetch(dataUrl).then(res => res.blob());
-      const response = await uploadFiles([new File([file], "nft.png")], {
-        endpoint: "imageUploader"
-      });
-      if (!response || !response[0]?.url) throw new Error("UploadThing failed");
-      return response[0].url;
+      const ut = new UploadThing({ endpoint: "imageUploader" });
+      const result = await ut.upload([new File([file], "nft.png")]);
+      if (!result || !result[0]?.url) throw new Error("UploadThing upload failed");
+      return result[0].url;
     };
 
     window.injectDataURLSupport = (hookMintLogic) => {
@@ -95,117 +95,106 @@
     };
 
     async function main() {
-      try {
-        const urlParams = new URLSearchParams(window.location.search);
-        const contractAddress = urlParams.get('address')?.toLowerCase();
-        if (!contractAddress) {
-          console.warn("❌ No address in URL");
-          document.getElementById("collectionName").innerText = "❌ Invalid or missing address";
-          return;
+      const urlParams = new URLSearchParams(window.location.search);
+      const contractAddress = urlParams.get('address')?.toLowerCase();
+      const querySnapshot = await getDocs(collection(db, "collections"));
+      let current;
+
+      querySnapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        if (data.address?.toLowerCase() === contractAddress) {
+          current = { id: docSnap.id, ...data };
+        }
+      });
+
+      if (!current) {
+        document.getElementById("collectionName").innerText = "❌ Collection Not Found";
+        return;
+      }
+
+      document.getElementById("collectionImage").src = current.image || "";
+      document.getElementById("collectionName").innerText = current.name || "Collection Name";
+      document.getElementById("collectionSymbol").innerText = "Symbol: " + (current.symbol || "ANFT");
+      document.getElementById("collectionDescription").innerHTML = "<strong>Description:</strong> " + (current.description || "");
+      const readablePrice = current.price ? ethers.utils.formatUnits(current.price, 18) : "--";
+      document.getElementById("priceInANO").innerText = "Price: " + readablePrice + " ANO + 1.0 ANO (Platform Fee)";
+      document.getElementById("totalSupply").innerText = current.supply || "--";
+      window.currentCollection = current;
+      if (!current.minted) current.minted = "0";
+
+      if (parseInt(current.supply) === parseInt(current.minted)) {
+        document.getElementById("mintBtn").disabled = true;
+        document.getElementById("mintBtn").innerText = "Sold Out";
+        document.getElementById("mintAmount").disabled = true;
+      }
+
+      document.getElementById("mintBtn").addEventListener("click", async () => {
+        const mintBtn = document.getElementById("mintBtn");
+        const mintStatus = document.getElementById("mintStatus");
+        mintBtn.disabled = true;
+        mintBtn.innerText = "⏳ Minting...";
+        mintStatus.innerText = "";
+
+        if (!window.signer || !window.provider) {
+          if (window.ethereum) {
+            const ethersProvider = new ethers.providers.Web3Provider(window.ethereum);
+            window.provider = ethersProvider;
+            window.signer = ethersProvider.getSigner();
+          }
         }
 
-        const querySnapshot = await getDocs(collection(db, "collections"));
-        let current;
-        querySnapshot.forEach(docSnap => {
-          const data = docSnap.data();
-          if (data.address?.toLowerCase() === contractAddress) {
-            current = { id: docSnap.id, ...data };
-          }
-        });
-
-        if (!current) {
-          document.getElementById("collectionName").innerText = "❌ Collection Not Found";
-          return;
-        }
-
-        // Update UI
-        document.getElementById("collectionImage").src = current.image || "";
-        document.getElementById("collectionName").innerText = current.name || "Collection Name";
-        document.getElementById("collectionSymbol").innerText = "Symbol: " + (current.symbol || "ANFT");
-        document.getElementById("collectionDescription").innerHTML = "<strong>Description:</strong> " + (current.description || "");
-        const readablePrice = current.price ? ethers.utils.formatUnits(current.price, 18) : "--";
-        document.getElementById("priceInANO").innerText = "Price: " + readablePrice + " ANO + 1.0 ANO (Platform Fee)";
-        document.getElementById("totalSupply").innerText = current.supply || "--";
-
-        if (!current.minted) current.minted = "0";
-        window.currentCollection = current;
-
-        if (parseInt(current.supply) === parseInt(current.minted)) {
-          document.getElementById("mintBtn").disabled = true;
-          document.getElementById("mintBtn").innerText = "Sold Out";
-          document.getElementById("mintAmount").disabled = true;
-        }
-
-        document.getElementById("mintBtn").addEventListener("click", async () => {
-          const mintBtn = document.getElementById("mintBtn");
-          const mintStatus = document.getElementById("mintStatus");
-          mintBtn.disabled = true;
-          mintBtn.innerText = "⏳ Minting...";
-          mintStatus.innerText = "";
-
-          if (!window.signer || !window.provider) {
-            if (window.ethereum) {
-              const ethersProvider = new ethers.providers.Web3Provider(window.ethereum);
-              window.provider = ethersProvider;
-              window.signer = ethersProvider.getSigner();
-            }
-          }
-
-          if (!window.signer || !window.provider) {
-            alert("Please connect your wallet first.");
-            mintBtn.disabled = false;
-            mintBtn.innerText = "Mint NFT";
-            return;
-          }
-
-          try {
-            const signer = window.signer;
-            const userAddress = await signer.getAddress();
-            const amount = parseInt(document.getElementById("mintAmount").value);
-            const pricePerNFT = ethers.BigNumber.from(current.price);
-            const platformFeePerNFT = ethers.BigNumber.from(current.platformFeeInANO || "1000000000000000000");
-            const totalPrice = pricePerNFT.mul(amount).add(platformFeePerNFT.mul(amount));
-
-            const anoToken = new ethers.Contract("0x1D6AfCff12be74b402692430d9be949943A875b0", [
-              "function approve(address spender, uint256 amount) external returns (bool)",
-              "function allowance(address owner, address spender) external view returns (uint256)"
-            ], signer);
-
-            const allowance = await anoToken.allowance(userAddress, contractAddress);
-            if (allowance.lt(totalPrice)) {
-              const approvalTx = await anoToken.approve(contractAddress, totalPrice);
-              await approvalTx.wait();
-            }
-
-            const contract = new ethers.Contract(contractAddress, [
-              { "inputs": [{ "internalType": "uint256", "name": "amount", "type": "uint256" }], "name": "mintNFT", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
-              { "inputs": [], "name": "tokenCounter", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" }
-            ], signer);
-
-            await window.injectDataURLSupport(async (tokenURI, amount) => {
-              await contract.callStatic.mintNFT(tokenURI, amount);
-              const gasEstimate = await contract.estimateGas.mintNFT(tokenURI, amount);
-              const gasLimit = gasEstimate.mul(2);
-              const tx = await contract.mintNFT(tokenURI, amount, { gasLimit });
-              await tx.wait();
-            })(current, amount);
-
-            window.currentCollection.minted = (parseInt(current.minted) + amount).toString();
-            await updateDoc(doc(db, "collections", current.id), { minted: window.currentCollection.minted });
-            const updated = await contract.tokenCounter();
-            document.getElementById("mintedCount").innerText = updated.toString();
-            mintStatus.innerText = `✅ Successfully minted ${amount} NFT${amount > 1 ? 's' : ''}!`;
-          } catch (err) {
-            console.error(err);
-            mintStatus.innerText = "❌ Mint failed. See console.";
-          }
-
+        if (!window.signer || !window.provider) {
+          alert("Please connect your wallet first.");
           mintBtn.disabled = false;
           mintBtn.innerText = "Mint NFT";
-        });
-      } catch (e) {
-        console.error("🔥 Unexpected Error in main():", e);
-      }
+          return;
+        }
+
+        try {
+          const signer = window.signer;
+          const userAddress = await signer.getAddress();
+          const amount = parseInt(document.getElementById("mintAmount").value);
+          const pricePerNFT = ethers.BigNumber.from(current.price);
+          const platformFeePerNFT = ethers.BigNumber.from(current.platformFeeInANO || "1000000000000000000");
+          const totalPrice = pricePerNFT.mul(amount).add(platformFeePerNFT.mul(amount));
+
+          const anoToken = new ethers.Contract("0x1D6AfCff12be74b402692430d9be949943A875b0", [
+            "function approve(address spender, uint256 amount) external returns (bool)",
+            "function allowance(address owner, address spender) external view returns (uint256)"
+          ], signer);
+
+          const allowance = await anoToken.allowance(userAddress, contractAddress);
+          if (allowance.lt(totalPrice)) {
+            const approvalTx = await anoToken.approve(contractAddress, totalPrice);
+            await approvalTx.wait();
+          }
+
+          const contract = new ethers.Contract(contractAddress, [
+            { "inputs": [{ "internalType": "uint256", "name": "amount", "type": "uint256" }], "name": "mintNFT", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+            { "inputs": [], "name": "tokenCounter", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" }
+          ], signer);
+
+          await window.injectDataURLSupport(async (tokenURI, amount) => {
+            await contract.callStatic.mintNFT(tokenURI, amount);
+            const gasEstimate = await contract.estimateGas.mintNFT(tokenURI, amount);
+            const gasLimit = gasEstimate.mul(2);
+            const tx = await contract.mintNFT(tokenURI, amount, { gasLimit });
+            await tx.wait();
+          })(current, amount);
+
+          window.currentCollection.minted = (parseInt(current.minted) + amount).toString();
+          await updateDoc(doc(db, "collections", current.id), { minted: window.currentCollection.minted });
+          const updated = await contract.tokenCounter();
+          document.getElementById("mintedCount").innerText = updated.toString();
+          mintStatus.innerText = `✅ Successfully minted ${amount} NFT${amount > 1 ? 's' : ''}!`;
+        } catch (err) {
+          console.error(err);
+          mintStatus.innerText = "❌ Mint failed. See console.";
+        }
+
+        mintBtn.disabled = false;
+        mintBtn.innerText = "Mint NFT";
+      });
     }
 
     main();
