@@ -1,0 +1,16 @@
+{
+  "name": "nft-uploader",
+  "version": "1.0.0",
+  "description": "Upload NFT images and metadata to Cloudinary",
+ "main": "server.js",
+"scripts": {
+  "start": "node server.js"
+}
+,
+  "dependencies": {
+    "cloudinary": "^1.37.2",
+    "dotenv": "^16.3.1",
+    "fs-extra": "^11.2.0",
+    "uuid": "^9.0.1"
+  }
+}

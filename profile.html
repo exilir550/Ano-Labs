@@ -50,11 +50,19 @@
     const nftGrid = document.getElementById('nftGrid');
 
     const ALCHEMY_KEY = 'YMUeZDRzmb0riL3Oix_GZxuwvCbeC_L0';
-    const ALCHEMY_BASE = `https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_KEY}`;
     const ANO_TOKEN_ADDRESS = '0x1D6AfCff12be74b402692430d9be949943A875b0';
     const ANO_TOKEN_ABI = ['function balanceOf(address owner) view returns (uint256)'];
+    const ALCHEMY_BASE = `https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_KEY}`;
 
     let signer, address;
+
+    function normalizeIPFS(url) {
+      if (!url) return '';
+      if (url.startsWith('ipfs://')) {
+        return url.replace('ipfs://', 'https://cloudflare-ipfs.com/ipfs/');
+      }
+      return url;
+    }
 
     async function connectWallet() {
       if (!window.ethereum) return alert('Install MetaMask');
@@ -62,8 +70,8 @@
       await provider.send('eth_requestAccounts', []);
       signer = provider.getSigner();
       address = await signer.getAddress();
-      connectBtn.innerText = '👤';
-      connectBtn.onclick = () => {};
+      connectBtn.innerText = `👤 ${address.slice(0, 6)}...${address.slice(-4)}`;
+      connectBtn.disabled = true;
       walletAddressEl.innerText = `Connected: ${address}`;
       await refreshBalances(provider, address);
       await loadNFTs(address);
@@ -81,7 +89,8 @@
       nftGrid.innerHTML = '<p class="col-span-full text-center text-gray-500">⏳ Loading NFTs...</p>';
       try {
         const resp = await fetch(`${ALCHEMY_BASE}/getNFTs?owner=${owner}`);
-        const { ownedNfts } = await resp.json();
+        const data = await resp.json();
+        const ownedNfts = data.ownedNfts || data.nfts || [];
         nftGrid.innerHTML = '';
 
         if (!ownedNfts.length) {
@@ -89,20 +98,47 @@
           return;
         }
 
-        
-const nfts = ownedNfts
-  .filter(nft => nft.contract.address && nft.id.tokenId)
-  .sort((a, b) => {
-    const timeA = new Date(a.timeLastUpdated || 0).getTime();
-    const timeB = new Date(b.timeLastUpdated || 0).getTime();
-    return timeB - timeA; // most recently updated/minted first
-  });
-
+        const seen = new Set();
+        const nfts = ownedNfts
+          .filter(nft => {
+            const tokenId = ethers.BigNumber.from(nft.id.tokenId || 0).toString();
+            const key = `${nft.contract?.address.toLowerCase()}-${tokenId}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return nft.contract?.address && nft.id?.tokenId;
+          })
+          .sort((a, b) => new Date(b.timeLastUpdated).getTime() - new Date(a.timeLastUpdated).getTime());
 
         for (const nft of nfts) {
           const tokenAddress = nft.contract.address;
           const tokenId = ethers.BigNumber.from(nft.id.tokenId).toString();
-          const imgSrc = nft.metadata?.image || nft.tokenUri?.gateway || '';
+
+          if (!nft.metadata || !nft.metadata.image) {
+            try {
+              let metadataUrl = nft.tokenUri?.gateway || nft.tokenUri?.raw;
+              if (!metadataUrl || (!metadataUrl.startsWith('http') && !metadataUrl.startsWith('ipfs://'))) continue;
+
+              metadataUrl = normalizeIPFS(metadataUrl);
+              const res = await fetch(metadataUrl);
+              if (!res.ok) continue;
+
+              const contentType = res.headers.get("Content-Type") || "";
+              if (contentType.includes("application/json")) {
+                nft.metadata = await res.json();
+              } else if (contentType.startsWith("image/")) {
+                nft.metadata = { image: metadataUrl };
+              }
+            } catch (err) {
+              continue;
+            }
+          }
+
+          let rawImage = nft.metadata?.image || nft.metadata?.image_url || '';
+          let imgSrc = normalizeIPFS(rawImage);
+
+          // Skip NFTs without a usable image
+          if (!imgSrc || !/^https?:\/\/.+/.test(imgSrc)) continue;
+
           const name = nft.metadata?.name?.split('#')[0] || nft.contractMetadata?.name || 'Collection';
 
           const card = document.createElement('div');
@@ -110,7 +146,7 @@ const nfts = ownedNfts
           card.innerHTML = `
             <img src="${imgSrc}" alt="${name}" class="rounded mb-2 w-full h-40 object-cover" />
             <p class="text-white font-bold">#${tokenId}</p>
-            <a href="dashboard.html?address=${tokenAddress}" class="text-amber-400 hover:underline mb-2">${name}</a>
+            <a href="mint.html?address=${tokenAddress}" class="text-amber-400 hover:underline mb-2">${name}</a>
             <div class="flex space-x-2 mb-2">
               <input type="text" placeholder="Recipient" class="px-2 py-1 rounded bg-gray-700 flex-1" />
               <button class="sendBtn px-2 py-1 bg-amber-400 text-black rounded">Send</button>
@@ -118,6 +154,21 @@ const nfts = ownedNfts
             <p class="status text-sm text-gray-400"></p>
           `;
           nftGrid.appendChild(card);
+
+          const imgEl = card.querySelector('img');
+          imgEl.onerror = () => {
+            if (!imgEl.dataset.fallback) {
+              imgEl.src = 'data:image/svg+xml;base64,' + btoa(`
+                <svg xmlns="http://www.w3.org/2000/svg" width="300" height="300">
+                  <rect width="100%" height="100%" fill="#333"/>
+                  <text x="50%" y="50%" fill="#ccc" font-size="20" font-family="Arial" text-anchor="middle" dy=".3em">
+                    No Image
+                  </text>
+                </svg>
+              `);
+              imgEl.dataset.fallback = "true";
+            }
+          };
 
           const input = card.querySelector('input');
           const btn = card.querySelector('.sendBtn');
@@ -134,32 +185,14 @@ const nfts = ownedNfts
               input.value = '';
               statusTxt.innerText = '✅ Sent!';
             } catch (e) {
-              console.error(e);
               statusTxt.innerText = '❌ Transfer Failed';
             }
           };
         }
       } catch (e) {
-        console.error("NFT fetch failed:", e);
         nftGrid.innerHTML = '<p class="col-span-full text-center text-red-400">❌ Failed to load NFTs</p>';
       }
     }
-
-    connectBtn.addEventListener('click', connectWallet);
-
-    window.addEventListener('DOMContentLoaded', async () => {
-      if (!window.ethereum) return;
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
-      const accs = await provider.send('eth_accounts', []);
-      if (accs.length) {
-        signer = provider.getSigner();
-        address = accs[0];
-        connectBtn.innerText = '👤';
-        walletAddressEl.innerText = `Connected: ${address}`;
-        await refreshBalances(provider, address);
-        await loadNFTs(address);
-      }
-    });
 
     document.querySelectorAll('nav a[href]').forEach(link => {
       if (window.location.href.includes(link.getAttribute('href'))) {
@@ -167,6 +200,19 @@ const nfts = ownedNfts
         link.classList.remove('text-white');
       }
     });
+
+    window.addEventListener("wallet-restored", async (e) => {
+      const { address: addr, signer: sg, provider } = e.detail;
+      signer = sg;
+      address = addr;
+      connectBtn.innerText = `👤 ${addr.slice(0, 6)}...${addr.slice(-4)}`;
+      connectBtn.disabled = true;
+      walletAddressEl.innerText = `Connected: ${addr}`;
+      await refreshBalances(provider, addr);
+      await loadNFTs(addr);
+    });
   </script>
+
+  <script src="./wallet-connect.js"></script>
 </body>
 </html>

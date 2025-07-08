@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Mint NFT | Ano Labs</title>
   <link href="./src/output.css" rel="stylesheet" />
-  <script src="https://js.uploadthing.com/legacy/widget.js"></script>
 </head>
 <body class="bg-gray-900 text-white min-h-screen pt-20 m-0">
 
@@ -14,12 +13,12 @@
     <div class="max-w-7xl mx-auto flex items-center justify-between px-6 py-4">
       <a href="index.html" class="text-3xl font-extrabold text-amber-400 tracking-wide">ANOLABS</a>
       <div class="space-x-6 flex items-center">
-        <a href="index.html" class="text-sm font-medium text-white hover:text-amber-400 transition">Home</a>
-        <a href="swap.html" class="text-sm font-medium text-white hover:text-amber-400 transition">Swap</a>
-        <a href="create-collection.html" class="text-sm font-medium text-white hover:text-amber-400 transition">Create</a>
-        <a href="dashboard.html" class="text-sm font-medium text-white hover:text-amber-400 transition">Dashboard</a>
-        <a href="gated-access.html" class="text-sm font-medium text-white hover:text-amber-400 transition">Gated Access</a>
-        <button id="connectWalletBtn" class="ml-4 px-4 py-2 bg-amber-400 text-black text-sm font-bold rounded-full hover:bg-amber-300 transition">
+        <a href="index.html" class="text-sm text-white hover:text-amber-400">Home</a>
+        <a href="swap.html" class="text-sm text-white hover:text-amber-400">Swap</a>
+        <a href="create-collection.html" class="text-sm text-white hover:text-amber-400">Create</a>
+        <a href="dashboard.html" class="text-sm text-white hover:text-amber-400">Dashboard</a>
+        <a href="gated-access.html" class="text-sm text-white hover:text-amber-400">Gated Access</a>
+        <button id="connectWalletBtn" class="ml-4 px-4 py-2 bg-amber-400 text-black font-bold rounded-full hover:bg-amber-300">
           Connect Wallet
         </button>
       </div>
@@ -58,7 +57,6 @@
   <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <script src="wallet-connect.js"></script>
-
   <script type="module">
     import { ethers } from "https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.esm.min.js";
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -76,30 +74,16 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    window.uploadDataImageToUploadThing = async (dataUrl) => {
-      const file = await fetch(dataUrl).then(res => res.blob());
-      const ut = new UploadThing({ endpoint: "imageUploader" });
-      const result = await ut.upload([new File([file], "nft.png")]);
-      if (!result || !result[0]?.url) throw new Error("UploadThing upload failed");
-      return result[0].url;
-    };
-
-    window.injectDataURLSupport = (hookMintLogic) => {
-      return async (current, amount) => {
-        let tokenURI = current.tokenURI || current.image || "";
-        if (tokenURI.startsWith("data:image/")) {
-          tokenURI = await window.uploadDataImageToUploadThing(tokenURI);
-        }
-        await hookMintLogic(tokenURI, amount);
-      };
-    };
-
     async function main() {
       const urlParams = new URLSearchParams(window.location.search);
       const contractAddress = urlParams.get('address')?.toLowerCase();
+      if (!contractAddress) {
+        document.getElementById("collectionName").innerText = "❌ Missing address";
+        return;
+      }
+
       const querySnapshot = await getDocs(collection(db, "collections"));
       let current;
-
       querySnapshot.forEach(docSnap => {
         const data = docSnap.data();
         if (data.address?.toLowerCase() === contractAddress) {
@@ -119,8 +103,19 @@
       const readablePrice = current.price ? ethers.utils.formatUnits(current.price, 18) : "--";
       document.getElementById("priceInANO").innerText = "Price: " + readablePrice + " ANO + 1.0 ANO (Platform Fee)";
       document.getElementById("totalSupply").innerText = current.supply || "--";
+      try {
+  const provider = new ethers.providers.JsonRpcProvider("https://sepolia.infura.io/v3/39151562e7df4e91baa0455ff9c62dcf");
+  const contract = new ethers.Contract(contractAddress, [
+    { name: "tokenCounter", inputs: [], outputs: [{ type: "uint256" }], stateMutability: "view", type: "function" }
+  ], provider);
+  const minted = await contract.tokenCounter();
+  document.getElementById("mintedCount").innerText = minted.toString();
+} catch (err) {
+  console.warn("❌ Could not fetch on-chain minted count:", err);
+  document.getElementById("mintedCount").innerText = "0";
+}
+
       window.currentCollection = current;
-      if (!current.minted) current.minted = "0";
 
       if (parseInt(current.supply) === parseInt(current.minted)) {
         document.getElementById("mintBtn").disabled = true;
@@ -155,18 +150,18 @@
           const userAddress = await signer.getAddress();
           const amount = parseInt(document.getElementById("mintAmount").value);
           const pricePerNFT = ethers.BigNumber.from(current.price);
-          const platformFeePerNFT = ethers.BigNumber.from(current.platformFeeInANO || "1000000000000000000");
-          const totalPrice = pricePerNFT.mul(amount).add(platformFeePerNFT.mul(amount));
+          const platformFee = ethers.BigNumber.from("1000000000000000000");
+          const totalPrice = pricePerNFT.mul(amount).add(platformFee.mul(amount));
 
-          const anoToken = new ethers.Contract("0x1D6AfCff12be74b402692430d9be949943A875b0", [
+          const token = new ethers.Contract("0x1D6AfCff12be74b402692430d9be949943A875b0", [
             "function approve(address spender, uint256 amount) external returns (bool)",
             "function allowance(address owner, address spender) external view returns (uint256)"
           ], signer);
 
-          const allowance = await anoToken.allowance(userAddress, contractAddress);
+          const allowance = await token.allowance(userAddress, contractAddress);
           if (allowance.lt(totalPrice)) {
-            const approvalTx = await anoToken.approve(contractAddress, totalPrice);
-            await approvalTx.wait();
+            const tx = await token.approve(contractAddress, totalPrice);
+            await tx.wait();
           }
 
           const contract = new ethers.Contract(contractAddress, [
@@ -174,22 +169,19 @@
             { "inputs": [], "name": "tokenCounter", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" }
           ], signer);
 
-          await window.injectDataURLSupport(async (tokenURI, amount) => {
-            await contract.callStatic.mintNFT(tokenURI, amount);
-            const gasEstimate = await contract.estimateGas.mintNFT(tokenURI, amount);
-            const gasLimit = gasEstimate.mul(2);
-            const tx = await contract.mintNFT(tokenURI, amount, { gasLimit });
-            await tx.wait();
-          })(current, amount);
+          const gas = await contract.estimateGas.mintNFT(amount);
+          const tx = await contract.mintNFT(amount, { gasLimit: gas.mul(2) });
+          await tx.wait();
 
-          window.currentCollection.minted = (parseInt(current.minted) + amount).toString();
-          await updateDoc(doc(db, "collections", current.id), { minted: window.currentCollection.minted });
+          current.minted = (parseInt(current.minted || "0") + amount).toString();
+          await updateDoc(doc(db, "collections", current.id), { minted: current.minted });
+
           const updated = await contract.tokenCounter();
           document.getElementById("mintedCount").innerText = updated.toString();
           mintStatus.innerText = `✅ Successfully minted ${amount} NFT${amount > 1 ? 's' : ''}!`;
         } catch (err) {
           console.error(err);
-          mintStatus.innerText = "❌ Mint failed. See console.";
+          mintStatus.innerText = "❌ Mint failed.";
         }
 
         mintBtn.disabled = false;

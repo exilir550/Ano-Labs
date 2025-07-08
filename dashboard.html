@@ -78,26 +78,32 @@
     let visibleCards = 8;
 
     function createCard(col) {
-      return `
-        <div class="bg-gray-800 rounded-xl overflow-hidden shadow-lg flex flex-col transition hover:scale-[1.02] duration-200">
-          <div class="relative">
-            <img src="${col.image}" class="h-44 w-full object-cover" />
-          </div>
-          <div class="p-4 space-y-2 flex-1 flex flex-col justify-between">
-            <div>
-              <h3 class="text-lg font-bold text-white truncate">${col.name} <span class="text-amber-400 text-sm">(${col.symbol})</span></h3>
-              <p class="text-xs text-gray-400"><strong>Description:</strong> ${col.description}</p>
-              <p class="text-xs text-gray-500 mt-1">Max/Wallet: ${col.maxPerWallet || "-"}</p>
-            </div>
-            <div class="flex justify-between text-sm text-gray-300 mt-2">
-              <span class="text-green-300 font-semibold">${ethers.utils.formatUnits(col.price, 18)} ANO</span>
-              <span class="text-gray-400">${col.minted}/${col.supply}</span>
-            </div>
-            <a href="mint.html?address=${col.address}" class="mt-4 block text-center py-2 rounded bg-amber-400 text-black font-semibold hover:bg-amber-300">Mint</a>
-          </div>
+  const isSoldOut = parseInt(col.minted) >= parseInt(col.supply);
+  const button = isSoldOut
+    ? `<button class="mt-4 w-full py-2 rounded bg-gray-700 text-gray-400 font-semibold cursor-not-allowed" disabled>Sold Out</button>`
+    : `<a href="mint.html?address=${col.address}" class="mt-4 block text-center py-2 rounded bg-amber-400 text-black font-semibold hover:bg-amber-300">Mint</a>`;
+
+  return `
+    <div class="bg-gray-800 rounded-xl overflow-hidden shadow-lg flex flex-col transition hover:scale-[1.02] duration-200">
+      <div class="relative">
+        <img src="${col.image}" class="h-44 w-full object-cover" />
+      </div>
+      <div class="p-4 space-y-2 flex-1 flex flex-col justify-between">
+        <div>
+          <h3 class="text-lg font-bold text-white truncate">${col.name} <span class="text-amber-400 text-sm">(${col.symbol})</span></h3>
+          <p class="text-xs text-gray-400"><strong>Description:</strong> ${col.description}</p>
+          <p class="text-xs text-gray-500 mt-1">Max/Wallet: ${col.maxPerWallet || "-"}</p>
         </div>
-      `;
-    }
+        <div class="flex justify-between text-sm text-gray-300 mt-2">
+          <span class="text-green-300 font-semibold">${ethers.utils.formatUnits(col.price, 18)} ANO</span>
+          <span class="text-gray-400">${col.minted}/${col.supply}</span>
+        </div>
+        ${button}
+      </div>
+    </div>
+  `;
+}
+
 
     function renderCollections(data) {
       activeSection.innerHTML = "";

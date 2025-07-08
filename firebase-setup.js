@@ -1,6 +1,6 @@
-// ✅ Modular Firebase Setup (reusable in any page)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBh9hBg2AxbVx2SyWKpDGNKNfpCYotoTko",
@@ -14,4 +14,6 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 window.db = getFirestore(app);
+window.storage = getStorage(app);
 window.firestoreHelpers = { addDoc, collection, serverTimestamp };
+window.storageHelpers = { ref, uploadBytes, getDownloadURL };
