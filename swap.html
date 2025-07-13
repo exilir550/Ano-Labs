@@ -8,26 +8,15 @@
   <style> body { padding-top: 4rem; } </style>
 </head>
 <body class="bg-gray-900 text-white min-h-screen">
-  <nav class="fixed top-0 left-0 right-0 w-full z-50 bg-gray-800 shadow-md">
-    <div class="max-w-7xl mx-auto flex items-center justify-between px-6 py-4">
-      <a href="index.html" class="text-3xl font-extrabold text-amber-400 tracking-wide">ANOLABS</a>
-      <div class="space-x-6 flex items-center">
-        <a href="index.html" class="text-sm font-medium text-white hover:text-amber-400 transition">Home</a>
-        <a href="swap.html" class="text-sm font-medium text-white hover:text-amber-400 transition">Swap</a>
-        <a href="create-collection.html" class="text-sm font-medium text-white hover:text-amber-400 transition">Create</a>
-        <a href="dashboard.html" class="text-sm font-medium text-white hover:text-amber-400 transition">Dashboard</a>
-        <a href="gated-access.html" class="text-sm font-medium text-white hover:text-amber-400 transition">Gated Access</a>
-        <button id="connectWalletBtn" class="ml-4 px-4 py-2 bg-amber-400 text-black text-sm font-bold rounded-full hover:bg-amber-300 transition">Connect Wallet</button>
-      </div>
-    </div>
-  </nav>
+  <!-- Navbar Placeholder -->
+  <div id="navbar-placeholder"></div>
 
   <main class="flex flex-col items-center justify-center px-4 py-12">
     <h1 class="text-3xl sm:text-4xl font-bold text-amber-400 mb-6 text-center">Swap ETH ↔ $ANO</h1>
     <p id="walletAddress" class="mb-4 text-sm text-gray-300 text-center break-words max-w-xs">Wallet: --</p>
 
     <div class="w-full max-w-md bg-gray-800 p-6 sm:p-8 rounded-xl shadow-xl">
-      <div id="balances" class="mb-4 text-sm text-gray-300 space-y-1">
+      <div class="mb-4 text-sm text-gray-300 space-y-1">
         <p id="ethBalance">ETH Balance: --</p>
         <p id="anoBalance">ANO Balance: --</p>
       </div>
@@ -46,126 +35,122 @@
     </div>
   </main>
 
+  <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-  <script>
-    const connectBtn = document.getElementById("connectWalletBtn");
-    const walletDisplay = document.getElementById("walletAddress");
-    const ethBalanceDisplay = document.getElementById("ethBalance");
-    const anoBalanceDisplay = document.getElementById("anoBalance");
-    const swapBtn = document.getElementById("swapBtn");
-    const status = document.getElementById("status");
+  <script src="wallet-connect.js"></script>
 
+  <script>
     const swapContractAddress = "0xe3f539606f39D1B57a610EF6466dEC5E62890D81";
     const anoTokenAddress = "0x1D6AfCff12be74b402692430d9be949943A875b0";
 
     const swapABI = [
-      { inputs: [], name: "swap", outputs: [], stateMutability: "payable", type: "function" },
-      { inputs: [{ name: "anoAmount", type: "uint256" }], name: "reverseSwap", outputs: [], stateMutability: "nonpayable", type: "function" }
+      { name: "swap", type: "function", stateMutability: "payable", inputs: [], outputs: [] },
+      { name: "reverseSwap", type: "function", stateMutability: "nonpayable", inputs: [{ name: "anoAmount", type: "uint256" }], outputs: [] }
     ];
 
     const tokenABI = [
-      { inputs: [{ name: "_owner", type: "address" }], name: "balanceOf", outputs: [{ name: "balance", type: "uint256" }], stateMutability: "view", type: "function" },
-      { inputs: [{ name: "_spender", type: "address" }, { name: "_value", type: "uint256" }], name: "approve", outputs: [{ name: "", type: "bool" }], stateMutability: "nonpayable", type: "function" }
+      { name: "balanceOf", type: "function", stateMutability: "view", inputs: [{ name: "_owner", type: "address" }], outputs: [{ name: "balance", type: "uint256" }] },
+      { name: "approve", type: "function", stateMutability: "nonpayable", inputs: [{ name: "_spender", type: "address" }, { name: "_value", type: "uint256" }], outputs: [{ name: "", type: "bool" }] }
     ];
 
-    let signer, provider, contract;
+    let provider, signer, swapContract;
+    let swapSetupDone = false;
 
-   function updateUI(address) {
-  connectBtn.innerHTML = `👤`;
-  connectBtn.onclick = () => window.location.href = "profile.html";
-  if (walletDisplay) walletDisplay.innerText = `Wallet: ${address}`;
-}
+    function setupSwap(address) {
+      if (swapSetupDone) return; // 🔒 Prevent multiple bindings
+      swapSetupDone = true;
 
+      const walletDisplay = document.getElementById("walletAddress");
+      const ethBalanceDisplay = document.getElementById("ethBalance");
+      const anoBalanceDisplay = document.getElementById("anoBalance");
+      const status = document.getElementById("status");
+      const swapBtn = document.getElementById("swapBtn");
 
-    async function refreshBalances(address) {
-      const ethBalance = await provider.getBalance(address);
-      ethBalanceDisplay.innerText = "ETH Balance: " + ethers.utils.formatEther(ethBalance) + " ETH";
-
-      const token = new ethers.Contract(anoTokenAddress, tokenABI, provider);
-      const anoBalance = await token.balanceOf(address);
-      anoBalanceDisplay.innerText = "ANO Balance: " + ethers.utils.formatEther(anoBalance) + " ANO";
-    }
-
-   connectBtn.addEventListener("click", async () => {
-  if (typeof window.ethereum === "undefined") return alert("Install MetaMask");
-
-  provider = new ethers.providers.Web3Provider(window.ethereum);
-  const accounts = await provider.listAccounts(); // ✅ This never triggers popup
-
-  if (accounts.length > 0) {
-    // Already connected
-    signer = provider.getSigner();
-    const address = await signer.getAddress();
-    contract = new ethers.Contract(swapContractAddress, swapABI, signer);
-    updateUI(address);
-    await refreshBalances(address);
-  } else {
-    // Show popup only if user not connected
-    try {
-      await provider.send("eth_requestAccounts", []);
+      provider = new ethers.providers.Web3Provider(window.ethereum);
       signer = provider.getSigner();
-      const address = await signer.getAddress();
-      localStorage.setItem("ano_wallet", address);
-      contract = new ethers.Contract(swapContractAddress, swapABI, signer);
-      updateUI(address);
-      await refreshBalances(address);
-    } catch (err) {
-      console.warn("User denied wallet connection");
-    }
-  }
-});
+      swapContract = new ethers.Contract(swapContractAddress, swapABI, signer);
 
+      walletDisplay.innerText = `Wallet: ${address}`;
 
+      async function refreshBalances() {
+        const ethBal = await provider.getBalance(address);
+        ethBalanceDisplay.innerText = "ETH Balance: " + ethers.utils.formatEther(ethBal);
 
-    window.addEventListener("DOMContentLoaded", async () => {
-  const saved = localStorage.getItem("ano_wallet");
-  if (saved && typeof window.ethereum !== "undefined") {
-    provider = new ethers.providers.Web3Provider(window.ethereum);
-    const accounts = await provider.listAccounts(); // ✅ Safe method — no popup
-    if (accounts.length > 0) {
-      signer = provider.getSigner();
-      contract = new ethers.Contract(swapContractAddress, swapABI, signer);
-      updateUI(accounts[0]);
-      await refreshBalances(accounts[0]);
-    }
-  }
-});
-
-
-    swapBtn.addEventListener("click", async () => {
-      if (!signer || !contract) return alert("Please connect your wallet first.");
-      const amount = document.getElementById("ethAmount").value;
-      const direction = document.getElementById("swapDirection").value;
-      if (!amount || isNaN(amount) || amount <= 0) return alert("Enter valid amount.");
-
-      try {
-        status.innerText = "Swapping...";
-        if (direction === "ethToAno") {
-          const tx = await contract.swap({ value: ethers.utils.parseEther(amount) });
-          await tx.wait();
-          status.innerText = "✅ ETH → ANO swap successful!";
-        } else {
-          const token = new ethers.Contract(anoTokenAddress, tokenABI, signer);
-          const amountInTokens = ethers.utils.parseEther(amount);
-          const approvalTx = await token.approve(swapContractAddress, amountInTokens);
-          await approvalTx.wait();
-          const reverseTx = await contract.reverseSwap(amountInTokens);
-          await reverseTx.wait();
-          status.innerText = "✅ ANO → ETH swap successful!";
-        }
-        const address = await signer.getAddress();
-        await refreshBalances(address);
-      } catch (error) {
-        console.error("Swap error:", error);
-        status.innerText = "❌ Swap failed. See console.";
+        const token = new ethers.Contract(anoTokenAddress, tokenABI, provider);
+        const anoBal = await token.balanceOf(address);
+        anoBalanceDisplay.innerText = "ANO Balance: " + ethers.utils.formatEther(anoBal);
       }
+
+      swapBtn.addEventListener("click", async () => {
+        const amount = document.getElementById("ethAmount").value;
+        const direction = document.getElementById("swapDirection").value;
+
+        if (!amount || isNaN(amount) || amount <= 0) return alert("Enter valid amount.");
+
+        try {
+          status.innerText = "⏳ Swapping...";
+          const amt = ethers.utils.parseEther(amount);
+
+          if (direction === "ethToAno") {
+            const tx = await swapContract.swap({ value: amt });
+            await tx.wait();
+            status.innerText = "✅ ETH → ANO swap successful!";
+          } else {
+            const token = new ethers.Contract(anoTokenAddress, tokenABI, signer);
+            const approveTx = await token.approve(swapContractAddress, amt);
+            await approveTx.wait();
+            const tx = await swapContract.reverseSwap(amt);
+            await tx.wait();
+            status.innerText = "✅ ANO → ETH swap successful!";
+          }
+
+          refreshBalances();
+        } catch (err) {
+          console.error(err);
+          status.innerText = "❌ Swap failed. Check console.";
+        }
+      });
+
+      refreshBalances();
+    }
+
+    // Navbar & Highlight
+    fetch("navbar.html")
+      .then((res) => res.text())
+      .then((html) => {
+        document.getElementById("navbar-placeholder").innerHTML = html;
+
+        // Highlight current nav link
+        const page = location.pathname.split("/").pop();
+        document.querySelectorAll(".nav-link").forEach((link) => {
+          if (link.getAttribute("data-page") === page) {
+            link.classList.add("text-amber-400", "font-bold");
+          }
+        });
+
+        // Mobile toggle
+        const btn = document.getElementById("mobileMenuBtn");
+        const menu = document.getElementById("mobileMenu");
+        const icon = document.getElementById("hamburgerIcon");
+
+        let isOpen = false;
+        btn?.addEventListener("click", () => {
+          menu?.classList.toggle("hidden");
+          isOpen = !isOpen;
+          icon.innerHTML = isOpen
+            ? `<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />`
+            : `<path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />`;
+        });
+      });
+
+    // Listen to wallet connect event
+    document.addEventListener("walletReady", (e) => {
+      setupSwap(e.detail.address);
     });
 
-    // Highlight active nav link
-    document.querySelectorAll("nav a[href]").forEach(link => {
-      if (window.location.href.includes(link.getAttribute("href"))) {
-        link.classList.add("text-amber-400");
-        link.classList.remove("text-white");
+    window.addEventListener("DOMContentLoaded", () => {
+      if (window.ano_wallet_address) {
+        setupSwap(window.ano_wallet_address);
       }
     });
   </script>

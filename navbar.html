@@ -1,0 +1,86 @@
+<!-- Navbar -->
+<nav class="fixed top-0 left-0 right-0 w-full z-50 bg-gray-800 shadow-md">
+  <div class="max-w-7xl mx-auto flex items-center justify-between px-6 py-4">
+    <a href="index.html" class="text-3xl font-extrabold text-amber-400 tracking-wide">ANOLABS</a>
+
+    <!-- Desktop Menu -->
+    <div class="hidden md:flex space-x-6 items-center relative">
+      <a href="index.html" data-page="index.html" class="nav-link text-sm text-white hover:text-amber-400">Home</a>
+      <a href="swap.html" data-page="swap.html" class="nav-link text-sm text-white hover:text-amber-400">Swap</a>
+      <a href="create-collection.html" data-page="create-collection.html" class="nav-link text-sm text-white hover:text-amber-400">Create</a>
+      <a href="dashboard.html" data-page="dashboard.html" class="nav-link text-sm text-white hover:text-amber-400">Dashboard</a>
+      <a href="gated-access.html" data-page="gated-access.html" class="nav-link text-sm text-white hover:text-amber-400">Gated Access</a>
+      <button id="connectWalletBtn" class="ml-4 px-4 py-2 bg-amber-400 text-black font-bold rounded-full hover:bg-amber-300">
+        Connect Wallet
+      </button>
+
+      <!-- ✅ Desktop Wallet Dropdown -->
+      <div id="walletDropdown" class="absolute right-0 top-14 bg-gray-800 text-white shadow-lg rounded-md w-48 opacity-0 scale-95 pointer-events-none transition duration-200 transform z-50">
+        <button id="goToProfile" class="block w-full text-left px-4 py-3 hover:bg-gray-700">👤 My Profile</button>
+        <button id="disconnectWallet" class="block w-full text-left px-4 py-3 hover:bg-gray-700">❌ Disconnect</button>
+      </div>
+    </div>
+
+    <!-- Hamburger Button -->
+    <button id="mobileMenuBtn" class="md:hidden transition duration-300">
+      <svg id="hamburgerIcon" class="w-7 h-7 text-white transition-transform duration-300 ease-in-out" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+      </svg>
+    </button>
+  </div>
+
+  <!-- Mobile Menu -->
+  <div id="mobileMenu" class="hidden md:hidden bg-gray-900 px-6 py-4 space-y-4 transition duration-300">
+    <a href="index.html" data-page="index.html" class="nav-link block text-white hover:text-amber-400">Home</a>
+    <a href="swap.html" data-page="swap.html" class="nav-link block text-white hover:text-amber-400">Swap</a>
+    <a href="create-collection.html" data-page="create-collection.html" class="nav-link block text-white hover:text-amber-400">Create</a>
+    <a href="dashboard.html" data-page="dashboard.html" class="nav-link block text-white hover:text-amber-400">Dashboard</a>
+    <a href="gated-access.html" data-page="gated-access.html" class="nav-link block text-white hover:text-amber-400">Gated Access</a>
+    <button id="connectWalletBtnMobile" class="w-full bg-amber-400 text-black px-4 py-2 rounded font-semibold hover:bg-amber-300">
+      🔌 Connect Wallet
+    </button>
+
+    <!-- ✅ Mobile Wallet Dropdown -->
+   <div id="walletDropdownMobile" class="hidden bg-gray-900 text-white mt-2 rounded-lg shadow-md opacity-0 scale-95 pointer-events-none transition duration-200 transform">
+   <button id="goToProfileMobile" class="block w-full text-left px-4 py-3 hover:bg-gray-700">👤 My Profile</button>
+      <button id="disconnectWalletMobile" class="block w-full text-left px-4 py-3 hover:bg-gray-700">❌ Disconnect</button>
+    </div>
+  </div>
+</nav>
+
+<!-- Active Link + Hamburger Toggle -->
+<script>
+  // Highlight active link (handles full URLs or query strings)
+  const currentPath = location.pathname.split("/").pop().split("?")[0];
+  document.querySelectorAll(".nav-link").forEach(link => {
+    const page = link.getAttribute("data-page");
+    if (page === currentPath) {
+      link.classList.add("text-amber-400", "font-bold");
+    }
+  });
+
+  // Hamburger toggle with icon animation
+  const btn = document.getElementById("mobileMenuBtn");
+  const menu = document.getElementById("mobileMenu");
+  const icon = document.getElementById("hamburgerIcon");
+
+  let isOpen = false;
+  btn.addEventListener("click", () => {
+    menu.classList.toggle("hidden");
+    isOpen = !isOpen;
+    icon.innerHTML = isOpen
+      ? `<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />`
+      : `<path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />`;
+  });
+
+  // ✅ Dropdown animation helpers (used in wallet-connect.js)
+  window.showDropdown = function (el) {
+    el.classList.remove("pointer-events-none", "opacity-0", "scale-95");
+    el.classList.add("opacity-100", "scale-100");
+  }
+
+  window.hideDropdown = function (el) {
+    el.classList.remove("opacity-100", "scale-100");
+    el.classList.add("opacity-0", "scale-95", "pointer-events-none");
+  }
+</script>

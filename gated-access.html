@@ -9,19 +9,7 @@
 <body class="bg-gray-900 text-white min-h-screen py-10 px-6 relative">
 
   <!-- ✅ Navbar -->
-  <nav class="fixed top-0 left-0 right-0 w-full z-50 bg-gray-800 shadow-md">
-    <div class="max-w-7xl mx-auto flex items-center justify-between px-6 py-4">
-      <a href="index.html" class="text-3xl font-extrabold text-amber-400 tracking-wide">ANOLABS</a>
-      <div class="space-x-6 flex items-center">
-        <a href="index.html" class="text-sm font-medium text-white hover:text-amber-400 transition">Home</a>
-        <a href="swap.html" class="text-sm font-medium text-white hover:text-amber-400 transition">Swap</a>
-        <a href="create-collection.html" class="text-sm font-medium text-white hover:text-amber-400 transition">Create</a>
-        <a href="dashboard.html" class="text-sm font-medium text-white hover:text-amber-400 transition">Dashboard</a>
-        <a href="gated-access.html" class="text-sm font-medium text-white hover:text-amber-400 transition">Gated Access</a>
-        <button id="connectWalletBtn" class="ml-4 px-4 py-2 bg-amber-400 text-black text-sm font-bold rounded-full hover:bg-amber-300 transition">Connect Wallet</button>
-      </div>
-    </div>
-  </nav>
+  <div id="navbar-placeholder"></div>
 
   <div class="max-w-4xl mt-24 mx-auto">
     <h1 class="text-3xl font-bold text-amber-400 text-center mb-4">🔐 NFT Gated Access Integration</h1>
@@ -92,6 +80,42 @@
       <a href="mailto:support@anolabs.com" class="text-amber-400 hover:underline">support@anolabs.com</a>
     </p>
   </div>
+
+   <!-- Scripts -->
+  <script>
+  fetch("navbar.html")
+    .then(res => res.text())
+    .then(html => {
+      document.getElementById("navbar-placeholder").innerHTML = html;
+
+      // Run hamburger + active link logic manually
+      const currentPath = location.pathname.split("/").pop().split("?")[0];
+      document.querySelectorAll(".nav-link").forEach(link => {
+        const page = link.getAttribute("data-page");
+        if (page === currentPath) {
+          link.classList.add("text-amber-400", "font-bold");
+        }
+      });
+
+      const btn = document.getElementById("mobileMenuBtn");
+      const menu = document.getElementById("mobileMenu");
+      const icon = document.getElementById("hamburgerIcon");
+
+      let isOpen = false;
+      btn?.addEventListener("click", () => {
+        menu?.classList.toggle("hidden");
+        isOpen = !isOpen;
+        icon.innerHTML = isOpen
+          ? `<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />`
+          : `<path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />`;
+      });
+
+      // Then load wallet logic
+      const script = document.createElement("script");
+      script.src = "wallet-connect.js";
+      document.body.appendChild(script);
+    });
+</script>
   
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <script>

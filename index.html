@@ -28,44 +28,61 @@
     .marquee-container:hover .marquee-track {
       animation-play-state: paused;
     }
-    .glow {
-      text-shadow: 0 0 10px #fbbf24, 0 0 20px #fbbf24;
-    }
     .hero-bg {
       background: radial-gradient(circle, rgba(255,200,0,0.1), transparent 70%);
     }
   </style>
+ <script
+  src="https://unpkg.com/@lottiefiles/dotlottie-wc@0.6.2/dist/dotlottie-wc.js"
+  type="module"
+></script>
+
 </head>
 <body>
-  <nav class="bg-gray-800 px-6 py-4 shadow-md sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto flex items-center justify-between">
-      <a href="index.html" class="text-3xl font-extrabold text-amber-400 tracking-wide">ANOLABS</a>
-      <div class="space-x-4 flex gap-2 items-center relative">
-        <a href="index.html" class="text-sm font-medium text-amber-400">Home</a>
-        <a href="swap.html" class="text-sm font-medium text-white hover:text-amber-400 transition">Swap</a>
-        <a href="create-collection.html" class="text-sm font-medium text-white hover:text-amber-400 transition">Create</a>
-        <a href="dashboard.html" class="text-sm font-medium text-white hover:text-amber-400 transition">Dashboard</a>
-        <a href="gated-access.html" class="text-sm font-medium text-white hover:text-amber-400 transition">Gated Access</a>
-        <div class="relative">
-          <button id="connectWalletBtn" class="ml-4 px-4 py-2 bg-amber-400 text-black text-sm font-bold rounded-full hover:bg-amber-300 transition">Connect Wallet</button>
-          <div id="walletDropdown" class="absolute right-0 mt-2 w-44 bg-gray-800 border border-gray-700 rounded-lg shadow-lg hidden z-50">
-            <a href="profile.html" class="block px-4 py-2 text-sm text-white hover:bg-gray-700">👤 Go to Profile</a>
-            <button id="disconnectWalletBtn" class="block w-full text-left px-4 py-2 text-sm text-white hover:bg-gray-700">🚪 Disconnect</button>
-          </div>
-        </div>
+
+  <!-- Navbar placeholder -->
+  <div id="navbar-placeholder"></div>
+
+<section class="relative mt-14 lg:mt-14  px-4 sm:px-6 lg:px-4 py-10 sm:py-12 lg:py-10 hero-bg">
+  <div class="max-w-7xl  lg:max-w-15xl mx-auto flex flex-col-reverse lg:flex-row items-start justify-between gap-4 lg:gap-5 lg:ml-10">
+
+    <!-- Text Content -->
+    <div class="text-center lg:text-left max-w-lg mb:ml-10  ">
+      <h2 class="text-4xl sm:text-4xl lg:text-7xl font-extrabold text-amber-400 mb-6 leading-tight">
+        Welcome to Ano Labs
+      </h2>
+      <p class="text-base sm:text-lg text-gray-300">
+        Create, mint, and gate NFT collections on Sepolia using $ANO — No-code, fast, and fully on-chain.
+      </p>
+      <div class="mt-8 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
+        <a href="create-collection.html" class="animate-bounce px-6 py-3 bg-amber-400 text-black font-bold rounded-xl hover:bg-amber-300 w-full sm:w-auto text-center">
+          ➕ Launch Collection
+        </a>
+        <a href="dashboard.html" class="animate-pulse px-6 py-3 bg-gray-700 text-white font-semibold rounded-xl hover:bg-gray-600 w-full sm:w-auto text-center">
+          🧾 Explore Dashboard
+        </a>
       </div>
     </div>
-  </nav>
 
-  <section class="text-center px-6 py-20 relative hero-bg">
-    <h2 class="text-5xl font-extrabold text-amber-400 mb-6">Welcome to Ano Labs</h2>
-    <p class="text-gray-300 text-lg max-w-2xl mx-auto">Create, mint, and gate NFT collections on Sepolia using $ANO — No-code, fast, and fully on-chain.</p>
-    <div class="mt-10 space-x-4">
-      <a href="create-collection.html" class="animate-bounce px-6 py-3 bg-amber-400 text-black font-bold rounded-xl hover:bg-amber-300">➕ Launch Collection</a>
-      <a href="dashboard.html" class="animate-pulse px-6 py-3 bg-gray-700 text-white font-semibold rounded-xl hover:bg-gray-600">🧾 Explore Dashboard</a>
+    <!-- Lottie Animation -->
+    <div class="w-full flex justify-center lg:justify-end">
+      <dotlottie-wc
+        src="https://lottie.host/3ddb248d-10d3-425f-9799-e690c69b2788/FUcZUKHaFt.lottie"
+        style="width: 100%; max-width: 300; height: 100;"
+        speed="1"
+        autoplay
+        loop
+      ></dotlottie-wc>
     </div>
-  </section>
+    
+  </div>
+</section>
 
+
+
+
+
+  <!-- NFT Marquee -->
   <section class="marquee-container bg-gray-900">
     <div class="marquee-track px-6"></div>
     <template id="nft-card-template">
@@ -79,12 +96,14 @@
     </template>
   </section>
 
+  <!-- Features Section -->
   <section class="bg-gray-800 py-20 px-6">
     <h3 class="text-5xl font-bold text-center text-amber-300 mb-16">Core Features</h3>
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 max-w-8xl mx-auto">
+      <!-- Feature Cards -->
       <div class="bg-gray-700 p-6 rounded-xl shadow-xl">
-        <h4 class="text-xl font-bold text-white mb-2">🔐 Token Gating</h4>
-        <p class="text-gray-300 text-sm">Easily restrict website content to only NFT holders using our simple snippet.</p>
+        <h4 class="text-xl font-bold text-white mb-2">📦 Swap $ANO</h4>
+        <p class="text-gray-300 text-sm">Swap $ETH to $ANO or $ANO to $ETH to mint and pay fee for collections </p>
       </div>
       <div class="bg-gray-700 p-6 rounded-xl shadow-xl">
         <h4 class="text-xl font-bold text-white mb-2">⚡ Fast Deploy</h4>
@@ -95,31 +114,45 @@
         <p class="text-gray-300 text-sm">Use your $ANO token for mint payments — fully integrated with our custom swap.</p>
       </div>
       <div class="bg-gray-700 p-6 rounded-xl shadow-xl">
-        <h4 class="text-xl font-bold text-white mb-2">📦 Fully On-Chain</h4>
-        <p class="text-gray-300 text-sm">Collections are deployed to Sepolia directly — no centralized control, no vendor lock-in.</p>
+        <h4 class="text-xl font-bold text-white mb-2">🔐 Token Gating</h4>
+        <p class="text-gray-300 text-sm">Easily restrict website content to only NFT holders using our simple snippet.</p>
       </div>
     </div>
   </section>
 
-  <section class="py-12 px-6">  
+  <!-- How It Works Section -->
+  <section class="py-12 px-6 mb-5">  
     <h3 class="text-5xl font-bold text-center text-amber-300 mb-16">How It Works</h3>
     <div class="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
       <div class="bg-gray-800 p-8 rounded-xl shadow-xl">
         <h4 class="text-xl font-bold text-white mb-2">1. Connect Wallet</h4>
         <p class="text-gray-300 text-sm">Connect your Sepolia-compatible wallet to get started.</p>
       </div>
+      <div class="bg-gray-800 p-8 rounded-xl shadow-xl">
+        <h4 class="text-xl font-bold text-white mb-2">2. Swap to $ANO</h4>
+        <p class="text-gray-300 text-sm">Swap Sepolia ETH to $ANO </p>
+      </div>
       <div class="bg-gray-800 p-6 rounded-xl shadow-xl">
-        <h4 class="text-xl font-bold text-white mb-2">2. Create & Deploy</h4>
+        <h4 class="text-xl font-bold text-white mb-2">3. Create & Deploy</h4>
         <p class="text-gray-300 text-sm">Fill out your collection details and deploy your NFT contract instantly.</p>
       </div>
       <div class="bg-gray-800 p-6 rounded-xl shadow-xl">
-        <h4 class="text-xl font-bold text-white mb-2">3. Share & Earn</h4>
+        <h4 class="text-xl font-bold text-white mb-2">4. Share & Earn</h4>
         <p class="text-gray-300 text-sm">Share your mint link and start earning from every NFT minted using $ANO.</p>
+      </div>
+      <div class="bg-gray-800 p-6 rounded-xl shadow-xl">
+        <h4 class="text-xl font-bold text-white mb-2">5. Mint the NFTs</h4>
+        <p class="text-gray-300 text-sm">Let Your Community mint Your Collection to get access to your platform</p>
+      </div>
+      <div class="bg-gray-800 p-6 rounded-xl shadow-xl">
+        <h4 class="text-xl font-bold text-white mb-2">6. Profile</h4>
+        <p class="text-gray-300 text-sm">Check Profile Section to Check your tokens and Minted Collections</p>
       </div>
     </div>
   </section>
 
-  <footer class="bg-gray-800 text-center text-sm text-gray-400 py-6">
+  <!-- Footer -->
+  <footer class="bg-gray-800 text-center text-sm text-gray-400 py-6 mt-7">
     <div class="flex flex-col items-center gap-2">
       <div class="space-x-4">
         <span>🐦 Twitter</span>
@@ -132,7 +165,34 @@
 
   <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-  <script src="./wallet-connect.js"></script>
+
+  <!-- Load Navbar & THEN Wallet Logic -->
+<script>
+  fetch("navbar.html")
+    .then(res => res.text())
+    .then(data => {
+      document.getElementById("navbar-placeholder").innerHTML = data;
+
+      // ✅ Handle hamburger menu toggle AFTER navbar is injected
+      const btn = document.getElementById("mobileMenuBtn");
+      const menu = document.getElementById("mobileMenu");
+      const icon = document.getElementById("hamburgerIcon");
+
+      if (btn && menu && icon) {
+        btn.addEventListener("click", () => {
+          menu.classList.toggle("hidden");
+        });
+      }
+
+      // ✅ Load wallet connect logic AFTER navbar and menu are ready
+      const script = document.createElement("script");
+      script.src = "./wallet-connect.js";
+      document.body.appendChild(script);
+    });
+</script>
+
+
+  <!-- NFT Fetching from Firebase -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -167,10 +227,9 @@
         try {
           const contract = new ethers.Contract(col.address, tokenCounterABI, provider);
           const minted = await contract.tokenCounter();
-          const html = template.replace("{IMG}", col.image)
+          const html = template
+            .replace("{IMG}", col.image)
             .replace("{NAME}", col.name)
-            .replace("{SYMBOL}", col.symbol)
-            .replace("{DESC}", col.description)
             .replace("{PRICE}", ethers.utils.formatUnits(col.price, 18))
             .replace("{MINTED}", `${minted}/${col.supply}`);
           track.insertAdjacentHTML("beforeend", html);
@@ -178,40 +237,12 @@
           console.warn("Error rendering NFT:", err);
         }
       }
-      track.innerHTML += track.innerHTML; // seamless scroll
+
+      track.innerHTML += track.innerHTML; // For infinite scroll
     }
 
     loadCollections();
   </script>
-  <script>
-    const connectBtn = document.getElementById("connectWalletBtn");
-    const dropdown = document.getElementById("walletDropdown");
-    const disconnectBtn = document.getElementById("disconnectWalletBtn");
 
-    connectBtn.addEventListener("click", () => {
-      if (window.connected) {
-        dropdown.classList.toggle("hidden");
-      } else {
-        window.dispatchEvent(new Event("connect-wallet"));
-      }
-    });
-
-    disconnectBtn.addEventListener("click", () => {
-      localStorage.removeItem("ano_wallet");
-      window.location.reload();
-    });
-
-    window.addEventListener("click", (e) => {
-      if (!connectBtn.contains(e.target) && !dropdown.contains(e.target)) {
-        dropdown.classList.add("hidden");
-      }
-    });
-
-    window.addEventListener("wallet-restored", (e) => {
-      const { address } = e.detail;
-      connectBtn.innerText = `👤 ${address.slice(0, 6)}...${address.slice(-4)}`;
-      window.connected = true;
-    });
-  </script>
 </body>
 </html>

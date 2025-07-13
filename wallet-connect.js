@@ -1,103 +1,136 @@
-window.addEventListener("DOMContentLoaded", async () => {
-  const connectBtn = document.getElementById("connectWalletBtn");
-  if (!connectBtn || typeof window.ethereum === "undefined") return;
+console.log("🔔 wallet-connect.js loaded");
 
+function waitForNavbarAndInit() {
+  const desktopBtn = document.getElementById("connectWalletBtn");
+  const mobileBtn = document.getElementById("connectWalletBtnMobile");
+
+  if (!desktopBtn && !mobileBtn) {
+    console.log("⏳ Wallet buttons not found yet, retrying...");
+    return setTimeout(waitForNavbarAndInit, 100);
+  }
+
+  console.log("✅ Wallet buttons found. Initializing logic...");
+  initWallet(desktopBtn, mobileBtn);
+}
+
+function initWallet(desktopBtn, mobileBtn) {
   let signer;
-  let dropdown;
-
-  function shorten(addr) {
-    return addr.slice(0, 6) + "..." + addr.slice(-4);
-  }
-
-  function createDropdown() {
-    dropdown = document.createElement("div");
-    dropdown.id = "walletDropdown";
-    dropdown.className =
-      "absolute mt-2 right-0 bg-white text-black text-sm rounded shadow-xl z-50 w-40";
-    dropdown.innerHTML = `
-      <button id="goToProfile" class="block w-full text-left px-4 py-2 hover:bg-gray-100">👤 Go to Profile</button>
-      <button id="disconnectWallet" class="block w-full text-left px-4 py-2 hover:bg-gray-100">❌ Disconnect</button>
-    `;
-    document.body.appendChild(dropdown);
-
-    const rect = connectBtn.getBoundingClientRect();
-    dropdown.style.position = "absolute";
-    dropdown.style.top = rect.bottom + 5 + "px";
-    dropdown.style.left = rect.right - 160 + "px";
-
-    document.getElementById("goToProfile").onclick = () => {
-      window.location.href = "profile.html";
-    };
-    document.getElementById("disconnectWallet").onclick = () => {
-      localStorage.removeItem("ano_wallet");
-      location.reload();
-    };
-
-    window.addEventListener("click", handleOutsideClick);
-  }
-
-  function removeDropdown() {
-    if (dropdown) {
-      dropdown.remove();
-      dropdown = null;
-      window.removeEventListener("click", handleOutsideClick);
-    }
-  }
-
-  function handleOutsideClick(e) {
-    if (dropdown && !dropdown.contains(e.target) && e.target !== connectBtn) {
-      removeDropdown();
-    }
-  }
-
-  function setupConnectedUI(address) {
-    connectBtn.innerText = "👤 " + shorten(address);
-    connectBtn.onclick = () => {
-      if (dropdown) removeDropdown();
-      else createDropdown();
-    };
-  }
-
-  async function silentlyRestoreWallet() {
-    const savedWallet = localStorage.getItem("ano_wallet");
-    if (!savedWallet) return;
-
-    try {
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
-      const accounts = await provider.listAccounts(); // ✅ silent
-      if (accounts.length && accounts[0].toLowerCase() === savedWallet.toLowerCase()) {
-        signer = provider.getSigner();
-        setupConnectedUI(savedWallet);
-
-        // ✅ dispatch event to let other scripts use signer/address
-        window.dispatchEvent(new CustomEvent("wallet-restored", {
-          detail: { address: savedWallet, signer, provider }
-        }));
-      } else {
-        localStorage.removeItem("ano_wallet");
-      }
-    } catch (err) {
-      console.warn("Silent restore failed:", err);
-    }
-  }
+  const shorten = (addr) => addr.slice(0, 6) + "..." + addr.slice(-4);
 
   async function connectWallet() {
     try {
+      console.log("🔌 Connecting wallet...");
       const provider = new ethers.providers.Web3Provider(window.ethereum);
       await provider.send("eth_requestAccounts", []);
       signer = provider.getSigner();
       const address = await signer.getAddress();
       localStorage.setItem("ano_wallet", address);
-      setupConnectedUI(address);
-
-      window.dispatchEvent(new CustomEvent("wallet-restored", {
-        detail: { address, signer, provider }
-      }));
-    } catch (err) {
-      console.error("Wallet connect failed:", err);
+      updateUI(address);
+      window.ano_wallet_address = address;
+      document.dispatchEvent(new CustomEvent("walletReady", { detail: { address } }));
+    } catch (e) {
+      console.error("❌ Wallet connection failed:", e);
     }
   }
 
-  connectBtn.addEventListener("click", connectWallet);
-  silentlyRestoreWallet();
-});
+  function updateUI(address) {
+    const label = "👤 " + shorten(address);
+    if (desktopBtn) {
+      desktopBtn.innerText = label;
+      desktopBtn.onclick = () => toggleDropdown("desktop");
+    }
+    if (mobileBtn) {
+      mobileBtn.innerText = label;
+      mobileBtn.onclick = () => toggleDropdown("mobile");
+    }
+    setupDropdownEvents();
+  }
+
+  function toggleDropdown(type) {
+    const dropdown = document.getElementById(
+      type === "desktop" ? "walletDropdown" : "walletDropdownMobile"
+    );
+    if (!dropdown) return;
+
+    const visible = dropdown.classList.contains("opacity-100");
+    hideAllDropdowns();
+    if (!visible) showDropdown(dropdown);
+  }
+
+  function showDropdown(el) {
+    el.classList.remove("hidden", "opacity-0", "scale-95", "pointer-events-none");
+    el.classList.add("opacity-100", "scale-100");
+    document.addEventListener("click", outsideClickHandler);
+  }
+
+  function hideAllDropdowns() {
+    ["walletDropdown", "walletDropdownMobile"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.classList.remove("opacity-100", "scale-100");
+        el.classList.add("opacity-0", "scale-95", "pointer-events-none");
+        setTimeout(() => el.classList.add("hidden"), 22200);
+      }
+    });
+    document.removeEventListener("click", outsideClickHandler);
+  }
+
+  function outsideClickHandler(e) {
+    const dropdown = e.target.closest("#walletDropdown, #walletDropdownMobile");
+    const btn = e.target.closest("#connectWalletBtn, #connectWalletBtnMobile");
+    if (!dropdown && !btn) hideAllDropdowns();
+  }
+
+  function setupDropdownEvents() {
+    [
+      ["goToProfile", "profile.html"],
+      ["goToProfileMobile", "profile.html"],
+      ["disconnectWallet", disconnect],
+      ["disconnectWalletMobile", disconnect],
+    ].forEach(([id, action]) => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.onclick = typeof action === "string" ? () => (location.href = action) : action;
+      }
+    });
+  }
+
+  function disconnect() {
+    localStorage.removeItem("ano_wallet");
+    if (desktopBtn) {
+      desktopBtn.innerText = "🔌 Connect Wallet";
+      desktopBtn.onclick = connectWallet;
+    }
+    if (mobileBtn) {
+      mobileBtn.innerText = "🔌 Connect Wallet";
+      mobileBtn.onclick = connectWallet;
+    }
+    hideAllDropdowns();
+  }
+
+  async function restoreWallet() {
+    const saved = localStorage.getItem("ano_wallet");
+    if (!saved) return;
+    try {
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const accounts = await provider.listAccounts();
+      if (accounts.length && accounts[0].toLowerCase() === saved.toLowerCase()) {
+        signer = provider.getSigner();
+        updateUI(saved);
+        window.ano_wallet_address = saved;
+        document.dispatchEvent(new CustomEvent("walletReady", { detail: { address: saved } }));
+      } else {
+        disconnect();
+      }
+    } catch (err) {
+      console.warn("🔇 Silent restore failed:", err);
+    }
+  }
+
+  desktopBtn.addEventListener("click", connectWallet);
+  mobileBtn.addEventListener("click", connectWallet);
+  restoreWallet();
+}
+
+// 🔁 Kick off wait loop
+waitForNavbarAndInit();
