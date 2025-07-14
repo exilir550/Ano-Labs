@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Ano Labs | Home</title>
   <link href="./src/output.css" rel="stylesheet" />
+  <link rel="shortcut icon" href="/media/favicon-16x16.png" type="image/x-icon">
   <style>
     body {
       background-color: #1f2937;
@@ -31,7 +32,15 @@
     .hero-bg {
       background: radial-gradient(circle, rgba(255,200,0,0.1), transparent 70%);
     }
+
+    
+  .paused-marquee {
+  animation-play-state: paused !important;
+}
+
+
   </style>
+
  <script
   src="https://unpkg.com/@lottiefiles/dotlottie-wc@0.6.2/dist/dotlottie-wc.js"
   type="module"
@@ -151,45 +160,52 @@
     </div>
   </section>
 
-  <!-- Footer -->
-  <footer class="bg-gray-800 text-center text-sm text-gray-400 py-6 mt-7">
-    <div class="flex flex-col items-center gap-2">
-      <div class="space-x-4">
-        <span>🐦 Twitter</span>
-        <span>💬 Discord</span>
-        <span>📧 support@anolabs.com</span>
-      </div>
-      <div>© 2025 Ano Labs — All rights reserved</div>
+<footer class="bg-gray-800 text-center text-sm text-gray-400 py-6 mt-7">
+  <div class="flex flex-col items-center gap-2">
+    <div class="space-x-4">
+      <a href="https://x.com/anolabs" target="_blank" rel="noopener noreferrer" class="text-gray-400 hover:text-amber-300 hover:underline transition-colors duration-200">
+        🐦 Twitter
+      </a>
+      <a href="https://discord.gg/anolabs" target="_blank" rel="noopener noreferrer" class="text-gray-400 hover:text-amber-300 hover:underline transition-colors duration-200">
+        💬 Discord
+      </a>
+      <a href="mailto:support@anolabs.com" class="text-gray-400 hover:text-amber-300 hover:underline transition-colors duration-200">
+        📧 support@anolabs.com
+      </a>
     </div>
-  </footer>
+    <div>© 2025 Ano Labs — All rights reserved</div>
+  </div>
+</footer>
+
+
 
   <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
 
-  <!-- Load Navbar & THEN Wallet Logic -->
-<script>
+  <script>
+  // Load Navbar
   fetch("navbar.html")
     .then(res => res.text())
     .then(data => {
       document.getElementById("navbar-placeholder").innerHTML = data;
 
-      // ✅ Handle hamburger menu toggle AFTER navbar is injected
       const btn = document.getElementById("mobileMenuBtn");
       const menu = document.getElementById("mobileMenu");
-      const icon = document.getElementById("hamburgerIcon");
 
-      if (btn && menu && icon) {
+      if (btn && menu) {
         btn.addEventListener("click", () => {
           menu.classList.toggle("hidden");
         });
       }
 
-      // ✅ Load wallet connect logic AFTER navbar and menu are ready
       const script = document.createElement("script");
       script.src = "./wallet-connect.js";
       document.body.appendChild(script);
     });
+
+
 </script>
+
 
 
   <!-- NFT Fetching from Firebase -->
@@ -243,6 +259,9 @@
 
     loadCollections();
   </script>
+
+
+
 
 </body>
 </html>

@@ -5,12 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin Dashboard | Ano Labs</title>
   <link href="./src/output.css" rel="stylesheet" />
+  <link rel="shortcut icon" href="/media/favicon-16x16.png" type="image/x-icon">
+  <link rel="shortcut icon" href="/media/favicon-16x16.png" type="image/x-icon">
 </head>
 <body class="bg-gray-900 text-white min-h-screen px-6 py-10">
 
   <!-- Navbar -->
-<div id="navbar-placeholder"></div>
-
+  <div id="navbar-placeholder"></div>
 
   <h1 class="text-3xl font-bold text-amber-400 mt-20 mb-8 text-center">Admin Collection Manager</h1>
 
@@ -28,43 +29,41 @@
     <p id="emptyState" class="text-center text-gray-400 text-sm mt-10 hidden">No collections found for selected filter.</p>
   </div>
 
-
-   <!-- Scripts -->
+  <!-- Navbar + Wallet Logic -->
   <script>
-  fetch("navbar.html")
-    .then(res => res.text())
-    .then(html => {
-      document.getElementById("navbar-placeholder").innerHTML = html;
+    fetch("navbar.html")
+      .then(res => res.text())
+      .then(html => {
+        document.getElementById("navbar-placeholder").innerHTML = html;
 
-      // Run hamburger + active link logic manually
-      const currentPath = location.pathname.split("/").pop().split("?")[0];
-      document.querySelectorAll(".nav-link").forEach(link => {
-        const page = link.getAttribute("data-page");
-        if (page === currentPath) {
-          link.classList.add("text-amber-400", "font-bold");
-        }
+        const currentPath = location.pathname.split("/").pop().split("?")[0];
+        document.querySelectorAll(".nav-link").forEach(link => {
+          const page = link.getAttribute("data-page");
+          if (page === currentPath) {
+            link.classList.add("text-amber-400", "font-bold");
+          }
+        });
+
+        const btn = document.getElementById("mobileMenuBtn");
+        const menu = document.getElementById("mobileMenu");
+        const icon = document.getElementById("hamburgerIcon");
+
+        let isOpen = false;
+        btn?.addEventListener("click", () => {
+          menu?.classList.toggle("hidden");
+          isOpen = !isOpen;
+          icon.innerHTML = isOpen
+            ? `<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />`
+            : `<path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />`;
+        });
+
+        const script = document.createElement("script");
+        script.src = "wallet-connect.js";
+        document.body.appendChild(script);
       });
+  </script>
 
-      const btn = document.getElementById("mobileMenuBtn");
-      const menu = document.getElementById("mobileMenu");
-      const icon = document.getElementById("hamburgerIcon");
-
-      let isOpen = false;
-      btn?.addEventListener("click", () => {
-        menu?.classList.toggle("hidden");
-        isOpen = !isOpen;
-        icon.innerHTML = isOpen
-          ? `<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />`
-          : `<path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />`;
-      });
-
-      // Then load wallet logic
-      const script = document.createElement("script");
-      script.src = "wallet-connect.js";
-      document.body.appendChild(script);
-    });
-</script>
-
+  <!-- Admin Dashboard Script -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getFirestore, collection, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -96,13 +95,15 @@
       stateMutability: "view", type: "function"
     }];
 
-
     function exportToCSV(data) {
       const headers = ["Name", "Symbol", "Minted", "MaxSupply", "Price", "Status"];
       const rows = data.map(col => [
-        col.name, col.symbol, col.minted, col.supply,
-        parseFloat(ethers.utils.formatUnits(col.price, 18)),
-        parseInt(col.minted) >= parseInt(col.supply) ? "Sold Out" : "Active"
+        col.name || "Unnamed",
+        col.symbol || "N/A",
+        col.minted || 0,
+        col.supply || 0,
+        parseFloat(ethers.utils.formatUnits(col.price || "0", 18)),
+        (parseInt(col.minted || "0") >= parseInt(col.supply || "0")) ? "Sold Out" : "Active"
       ]);
 
       const csvContent = [headers, ...rows].map(r => r.join(",")).join("\n");
@@ -139,8 +140,8 @@
 
       const filter = filterStatus.value;
       let visible = data.filter(col => {
-        if (filter === "active") return parseInt(col.minted) < parseInt(col.supply);
-        if (filter === "sold") return parseInt(col.minted) >= parseInt(col.supply);
+        if (filter === "active") return parseInt(col.minted || "0") < parseInt(col.supply || "0");
+        if (filter === "sold") return parseInt(col.minted || "0") >= parseInt(col.supply || "0");
         return true;
       });
 
@@ -149,22 +150,22 @@
       }
 
       visible.forEach(col => {
-        const isSoldOut = parseInt(col.minted) >= parseInt(col.supply);
+        const isSoldOut = parseInt(col.minted || "0") >= parseInt(col.supply || "0");
         const status = isSoldOut ? "Sold Out" : "Active";
 
         const row = document.createElement("div");
         row.className = "flex items-center justify-between gap-4 p-4 bg-gray-800 rounded-xl hover:bg-gray-700 transition";
         row.innerHTML = `
           <div class="flex items-center gap-4">
-            <img src="${col.image}" alt="${col.name}" class="w-16 h-16 object-cover rounded-lg" />
+            <img src="${col.image}" alt="${col.name}" class="w-16 h-16 object-cover rounded-lg" onerror="this.src='https://via.placeholder.com/64x64?text=N/A';" />
             <div>
-              <h3 class="font-bold text-white">${col.name}</h3>
-              <p class="text-xs text-gray-400">${col.symbol}</p>
+              <h3 class="font-bold text-white">${col.name || "Unnamed Collection"}</h3>
+              <p class="text-xs text-gray-400">${col.symbol || "N/A"}</p>
             </div>
           </div>
-          <div class="text-sm text-gray-300">${col.minted} Minted</div>
-          <div class="text-sm text-gray-300">Max/Wallet: ${col.maxPerWallet}</div>
-          <div class="text-sm text-green-300 font-semibold">${ethers.utils.formatUnits(col.price, 18)} ANO</div>
+          <div class="text-sm text-gray-300">${col.minted || 0} Minted</div>
+          <div class="text-sm text-gray-300">Max/Wallet: ${col.maxPerWallet || "--"}</div>
+          <div class="text-sm text-green-300 font-semibold">${ethers.utils.formatUnits(col.price || "0", 18)} ANO</div>
           <div class="text-sm ${isSoldOut ? 'text-red-400' : 'text-green-400'} font-semibold">${status}</div>
           <button data-id="${col.id}" class="deleteBtn text-sm px-3 py-1 bg-red-500 text-white rounded hover:bg-red-400">🗑 Delete</button>
         `;
@@ -200,39 +201,28 @@
         return;
       }
 
-      updateUI(userAddress);
+      console.log("👤 Admin logged in:", userAddress);
       localStorage.setItem("ano_wallet", userAddress);
       await loadAndRender();
     }
 
     window.addEventListener("DOMContentLoaded", async () => {
-      if (window.ethereum && localStorage.getItem("ano_wallet")) {
-        const provider = new ethers.providers.Web3Provider(window.ethereum);
-        const accounts = await provider.send("eth_accounts", []);
-        if (accounts.length > 0) checkAdmin();
-      }
+      const hasWallet = window.ethereum && (localStorage.getItem("ano_wallet") || (await window.ethereum.request({ method: "eth_accounts" })).length > 0);
+      if (hasWallet) checkAdmin();
     });
-
   </script>
 
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <script src="./wallet-connect.js"></script>
-<script>
-  window.addEventListener("wallet-restored", e => {
-    const { address, signer, provider } = e.detail;
-    
-    // 👇 You can now access signer, provider, address on page
-    console.log("✅ Wallet Restored", address);
-
-    // Optional: set global variables
-    window.signer = signer;
-    window.provider = provider;
-    window.walletAddress = address;
-
-    // Use it to update balances or content
-    // Example: refreshBalances(address)
-  });
-</script>
+  <script>
+    window.addEventListener("wallet-restored", e => {
+      const { address, signer, provider } = e.detail;
+      console.log("✅ Wallet Restored", address);
+      window.signer = signer;
+      window.provider = provider;
+      window.walletAddress = address;
+    });
+  </script>
 
 </body>
 </html>
